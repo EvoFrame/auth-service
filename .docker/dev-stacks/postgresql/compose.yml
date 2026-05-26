@@ -1,0 +1,63 @@
+# Note:  this compose file is meant to be used in the context of the whole project,
+# and not as a standalone file.
+# It is included in the main compose file at the root of the project.
+
+services:
+  db:
+    image: postgres:16-alpine
+    profiles:
+      - services
+    container_name: ${COMPOSE_PROJECT_NAME}-db
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER:     ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB:       ${DB_NAME}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - db_net
+      - evoframe-internal
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    profiles:
+      - ui
+    container_name: ${COMPOSE_PROJECT_NAME}-pgadmin
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-80}:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    # No volume — ephemeral by design
+    networks:
+      - db_net
+    restart: unless-stopped
+
+  db_exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    profiles:
+      - monitoring
+    container_name: ${COMPOSE_PROJECT_NAME}-db-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable"
+    # No volume — ephemeral by design
+    networks:
+      - db_net
+      - evoframe-internal
+    restart: unless-stopped
+
+volumes:
+  db_data:
+
+networks:
+  db_net:
+    name: ${COMPOSE_PROJECT_NAME}_db
