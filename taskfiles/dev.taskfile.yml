@@ -1,0 +1,13 @@
+version: "3"
+
+tasks:
+  _guard:
+    internal: true
+    preconditions:
+      - sh: test -n "$DEVBOX_SHELL_ENABLED"
+        msg: "Not in devbox shell. Run: devbox shell  or  direnv allow"
+
+  start:
+    desc: Start Uvicorn with --reload
+    deps: [_guard]
+    cmd: uv run uvicorn resources.server:app --reload --host 0.0.0.0 --port 8080

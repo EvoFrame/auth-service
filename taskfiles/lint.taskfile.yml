@@ -1,0 +1,23 @@
+version: "3"
+
+tasks:
+  _guard:
+    internal: true
+    preconditions:
+      - sh: test -n "$DEVBOX_SHELL_ENABLED"
+        msg: "Not in devbox shell. Run: devbox shell  or  direnv allow"
+
+  check:
+    desc: Run ruff linter (report only)
+    deps: [_guard]
+    cmd: uv run ruff check resources/src resources/tests
+
+  format:
+    desc: Run ruff formatter
+    deps: [_guard]
+    cmd: uv run ruff format resources/src resources/tests
+
+  fix:
+    desc: Auto-fix lint issues in place
+    deps: [_guard]
+    cmd: uv run ruff check --fix resources/src resources/tests

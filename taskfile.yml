@@ -1,5 +1,15 @@
 version: "3"
 
+includes:
+  dev: ./taskfiles/dev.taskfile.yml
+  test: ./taskfiles/test.taskfile.yml
+  db: ./taskfiles/db.taskfile.yml
+  docker:
+    taskfile: ./taskfiles/docker.taskfile.yml
+    aliases: [dck]
+  deps: ./taskfiles/deps.taskfile.yml
+  lint: ./taskfiles/lint.taskfile.yml
+
 tasks:
   default:
     desc: List all available tasks
@@ -20,3 +30,49 @@ tasks:
       - for: { var: ENV_FILES, split: "\n" }
         cmd: ls -la $(echo {{ .ITEM }} | sed -e "s/.example$//") 2>/dev/null || true
     silent: true
+
+  dev:
+    desc: "▶  Start dev server (watch mode) + full dev stack (db + redis)"
+    cmds:
+      - task docker:dev-stack-up
+      - task dev:start
+
+  test:
+    desc: "🧪  Run full test suite"
+    cmd: task test:run
+
+  migrate:
+    desc: "🗄  Apply pending DB migrations"
+    cmd: task db:migrate
+
+  up:
+    desc: "🐳  Start full dev stack (app + db + redis)"
+    cmd: task docker:up
+
+  up-ui:
+    desc: "🐳  Start full stack + admin UIs"
+    cmd: task docker:up-ui
+
+  up-monitoring:
+    desc: "🐳  Start full stack + monitoring exporters"
+    cmd: task docker:up-monitoring
+
+  down:
+    desc: "🐳  Stop dev stack"
+    cmd: task docker:down
+
+  logs:
+    desc: "📋  Follow container logs"
+    cmd: task docker:logs
+
+  lint:
+    desc: "🔍  Run linter"
+    cmd: task lint:check
+
+  format:
+    desc: "✨  Auto-format code"
+    cmd: task lint:format
+
+  sync:
+    desc: "📦  Sync deps from uv.lock"
+    cmd: task deps:sync

@@ -1,0 +1,23 @@
+version: "3"
+
+tasks:
+  _guard:
+    internal: true
+    preconditions:
+      - sh: test -n "$DEVBOX_SHELL_ENABLED"
+        msg: "Not in devbox shell. Run: devbox shell  or  direnv allow"
+
+  run:
+    desc: Run full test suite with coverage
+    deps: [_guard]
+    cmd: uv run pytest resources/tests --cov=resources/src --cov-report=term-missing
+
+  unit:
+    desc: Run unit tests only
+    deps: [_guard]
+    cmd: uv run pytest resources/tests/unit -v
+
+  integration:
+    desc: Run integration tests only
+    deps: [_guard]
+    cmd: uv run pytest resources/tests/integration -v
