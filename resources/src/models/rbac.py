@@ -1,0 +1,37 @@
+import uuid
+from datetime import datetime
+
+from sqlmodel import Field, SQLModel
+
+
+class Role(SQLModel, table=True):
+    __tablename__ = "roles"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(unique=True, index=True, nullable=False)
+    description: str | None = Field(default=None, nullable=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+
+class Permission(SQLModel, table=True):
+    __tablename__ = "permissions"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(unique=True, index=True, nullable=False)
+    description: str | None = Field(default=None, nullable=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+
+class RolePermission(SQLModel, table=True):
+    __tablename__ = "role_permissions"
+
+    role_id: uuid.UUID = Field(foreign_key="roles.id", primary_key=True)
+    permission_id: uuid.UUID = Field(foreign_key="permissions.id", primary_key=True)
+
+
+class UserRole(SQLModel, table=True):
+    __tablename__ = "user_roles"
+
+    user_id: uuid.UUID = Field(primary_key=True)
+    role_id: uuid.UUID = Field(foreign_key="roles.id", primary_key=True)
+    assigned_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
