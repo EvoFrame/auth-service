@@ -1,2 +1,10 @@
 # Ignore all `.env` files in the project
-**/.env
+**/*.env
+**/*.env.local
+
+# Ignore all log files
+**/*.log
+
+# Ignore all cache files
+**/__pycache__/
+**/*.pyc
