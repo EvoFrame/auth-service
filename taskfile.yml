@@ -1,0 +1,22 @@
+version: "3"
+
+tasks:
+  default:
+    desc: List all available tasks
+    cmd: task --list
+    silent: true
+
+  init-env:
+    desc: Copy all `*.env.*example` files to `*.env*`
+    aliases: [ie]
+    vars:
+      ENV_FILES:
+        sh: find . -type f -name "*.env.*example" -exec echo {} \;
+    cmds:
+      - for: { var: ENV_FILES, split: "\n" }
+        cmd: cp -n {{ .ITEM }} $(echo {{ .ITEM }} | sed -e "s/.example$//") && chmod 766 $(echo {{ .ITEM }} | sed -e "s/.example$//")
+      - echo "Environment files initialized, you may want to edit them now"
+      - echo "Here are the files that were initialized:"
+      - for: { var: ENV_FILES, split: "\n" }
+        cmd: ls -la $(echo {{ .ITEM }} | sed -e "s/.example$//") 2>/dev/null || true
+    silent: true
