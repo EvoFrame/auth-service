@@ -1,8 +1,18 @@
 import os
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+# Ensure `resources/` is on sys.path so `src.*` imports resolve when alembic
+# is invoked from the project root (e.g. `uv run alembic -c resources/alembic.ini ...`).
+_resources_dir = str(Path(__file__).resolve().parent.parent)
+if _resources_dir not in sys.path:
+    sys.path.insert(0, _resources_dir)
+
+from src.db.base import Base  # noqa: E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -13,11 +23,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = Base
 
 db_url = os.getenv("DATABASE_URL", "")
 if "+asyncpg" in db_url:
