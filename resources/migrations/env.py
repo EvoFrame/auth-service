@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -17,6 +18,12 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = None
+
+db_url = os.getenv("DATABASE_URL", "")
+if "+asyncpg" in db_url:
+    db_url = db_url.replace("+asyncpg", "")
+if db_url:
+    config.set_main_option("sqlalchemy.url", db_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
