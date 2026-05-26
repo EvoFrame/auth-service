@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from redis.asyncio import Redis
 
@@ -20,7 +20,7 @@ class EventPublisher:
     ) -> None:
         envelope: dict[str, str] = {
             "source_service": settings.SERVICE_ID,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **payload,
         }
         if issuer_service:
