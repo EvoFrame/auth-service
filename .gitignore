@@ -11,3 +11,8 @@
 
 # Ignore all PEM files
 *.pem
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
