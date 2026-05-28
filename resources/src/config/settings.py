@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,6 +24,12 @@ class Settings(BaseSettings):
     # JWT / Keys — auth-service is the ONLY service that holds the private key
     RS256_PRIVATE_KEY: str
     RS256_PUBLIC_KEY: str
+
+    @field_validator("RS256_PRIVATE_KEY", "RS256_PUBLIC_KEY", mode="before")
+    @classmethod
+    def expand_newlines(cls, v: str) -> str:
+        """Allow PEM keys stored as single-line strings with literal \\n escapes."""
+        return v.replace("\\n", "\n")
     ACCESS_TOKEN_TTL: int = 900        # 15 min — user access tokens
     SERVICE_TOKEN_TTL: int = 300       # 5 min  — M2M service tokens
     REFRESH_TOKEN_TTL: int = 2592000   # 30 days
