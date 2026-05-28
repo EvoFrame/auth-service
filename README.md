@@ -82,6 +82,42 @@ service_clients
 
 ---
 
+## Local development
+
+### Generating RSA keys
+
+The service signs and verifies JWTs using an RS256 key pair. You need to generate
+these once and provide them as environment variables.
+
+```bash
+# Generate a 2048-bit RSA private key
+openssl genrsa -out private.pem 2048
+
+# Extract the public key
+openssl rsa -in private.pem -pubout -out public.pem
+```
+
+Add the PEM contents to your `.env` file (multiline values must be quoted):
+
+```env
+RS256_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+<paste contents of private.pem here>
+-----END RSA PRIVATE KEY-----"
+
+RS256_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----
+<paste contents of public.pem here>
+-----END PUBLIC KEY-----"
+```
+
+> **Security:** `private.pem` must never be committed or shared.
+> Only `auth-service` holds the private key — all other services use the public key only.
+> Add `*.pem` to `.gitignore`.
+
+The test suite generates its own ephemeral key pair automatically via `conftest.py`;
+these variables are only required when running the service manually.
+
+---
+
 ## Related docs
 
 - [EvoFrame roadmap](https://github.com/EvoFrame/roadmap/blob/main/README.md)
