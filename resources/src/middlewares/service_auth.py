@@ -28,6 +28,10 @@ class ServiceAuthMiddleware(BaseHTTPMiddleware):
         if any(request.url.path.startswith(p) for p in self._EXEMPT_PREFIXES):
             return await call_next(request)
 
+        if settings.DEBUG and settings.SKIP_SERVICE_AUTH:
+            logger.warning("service_auth_bypassed", path=request.url.path)
+            return await call_next(request)
+
         header = request.headers.get("X-Service-Token", "")
         if not header or not header.startswith("Bearer "):
             await self._emit_denied(request, "missing")
