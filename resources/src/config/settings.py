@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     WORKERS: int = 4
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
+    NOISE_LOG_LEVEL: str = "WARNING"
     # Dev-only: bypass X-Service-Token validation. Ignored unless DEBUG=true.
     SKIP_SERVICE_AUTH: bool = False
 

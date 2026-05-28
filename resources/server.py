@@ -1,9 +1,8 @@
-import logging
 from contextlib import asynccontextmanager
 
-import structlog
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
+from src.config.logging import configure_logging
 from src.config.settings import settings
 from src.events.consumers import start_all_consumers
 from src.libs.errors import register_exception_handlers
@@ -15,16 +14,7 @@ from src.redis.client import get_redis
 from src.routers import router
 from src.tasks.token_cleanup import start_scheduler, stop_scheduler
 
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
-    logger_factory=structlog.PrintLoggerFactory(),
-)
+configure_logging()
 
 
 @asynccontextmanager
