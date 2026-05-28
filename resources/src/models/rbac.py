@@ -1,6 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
@@ -10,7 +11,9 @@ class Role(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(unique=True, index=True, nullable=False)
     description: str | None = Field(default=None, nullable=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )
 
 
 class Permission(SQLModel, table=True):
@@ -19,7 +22,9 @@ class Permission(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(unique=True, index=True, nullable=False)
     description: str | None = Field(default=None, nullable=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )
 
 
 class RolePermission(SQLModel, table=True):
@@ -34,4 +39,6 @@ class UserRole(SQLModel, table=True):
 
     user_id: uuid.UUID = Field(primary_key=True)
     role_id: uuid.UUID = Field(foreign_key="roles.id", primary_key=True)
-    assigned_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    assigned_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )

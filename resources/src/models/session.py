@@ -1,6 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
@@ -10,8 +11,10 @@ class RefreshSession(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(nullable=False, index=True)
     token_hash: str = Field(nullable=False, index=True)
-    expires_at: datetime = Field(nullable=False)
-    revoked_at: datetime | None = Field(default=None, nullable=True)
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    revoked_at: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True, default=None))
     ip: str | None = Field(default=None, nullable=True)
     user_agent: str | None = Field(default=None, nullable=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )

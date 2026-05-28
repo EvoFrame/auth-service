@@ -1,6 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
@@ -14,9 +15,14 @@ class User(SQLModel, table=True):
     is_verified: bool = Field(default=False, nullable=False)
     mfa_enabled: bool = Field(default=False, nullable=False)
     totp_secret_enc: str | None = Field(default=None, nullable=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        nullable=False,
-        sa_column_kwargs={"onupdate": datetime.utcnow},
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            default=lambda: datetime.now(UTC),
+            onupdate=lambda: datetime.now(UTC),
+        )
     )

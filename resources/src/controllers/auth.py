@@ -214,12 +214,13 @@ async def refresh_token(
 async def logout(refresh_token_str: str, session: AsyncSession, redis) -> dict:
     try:
         session_id, raw_token = refresh_token_str.split(":", 1)
+        session_uuid = uuid.UUID(session_id)
     except ValueError:
-        raise AppError("INVALID_REFRESH_TOKEN", "Invalid refresh token format.", status_code=400)
+        return {"message": "Logged out successfully."}
 
     rs = (await session.execute(
         select(RefreshSession).where(
-            RefreshSession.id == uuid.UUID(session_id),
+            RefreshSession.id == session_uuid,
             RefreshSession.revoked_at.is_(None),
         )
     )).scalar_one_or_none()
@@ -277,6 +278,7 @@ async def get_permissions(user_id: str, session: AsyncSession) -> PermissionsRes
         select(Permission)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
         .where(RolePermission.role_id.in_(role_ids))
+        .distinct()
     )
     permissions = [p.name for p in perms_result.scalars().all()]
 
