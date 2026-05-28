@@ -12,8 +12,8 @@
   },
   "shell": {
     "init_hook": [
-      "uv sync",
-      "if [ -f .env.local ]; then export $(grep -v '^[[:space:]]*#' .env.local | grep '=' | sed 's/[[:space:]]*#[^=]*$//' | xargs); fi"
+      "if [ -f .env.local ]; then export $(grep -v '^[[:space:]]*#' .env.local | grep '=' | sed 's/[[:space:]]*#[^=]*$//' | xargs); fi",
+      "uv sync"
     ],
     "scripts": {
       "test": [
