@@ -10,6 +10,7 @@ from src.libs.errors import register_exception_handlers
 from src.libs.health import health_router
 from src.middlewares.logging import LoggingMiddleware
 from src.middlewares.request_id import RequestIdMiddleware
+from src.middlewares.service_auth import ServiceAuthMiddleware
 from src.redis.client import get_redis
 from src.routers import router
 from src.tasks.token_cleanup import start_scheduler, stop_scheduler
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(RequestIdMiddleware)
+    app.add_middleware(ServiceAuthMiddleware)
 
     register_exception_handlers(app)
 
@@ -60,4 +62,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
