@@ -18,9 +18,7 @@ async def _cleanup_sessions() -> None:
     now = datetime.now(UTC)
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            delete(RefreshSession).where(
-                (RefreshSession.expires_at < now) | (RefreshSession.revoked_at.isnot(None))
-            )
+            delete(RefreshSession).where((RefreshSession.expires_at < now) | (RefreshSession.revoked_at.isnot(None)))
         )
         await session.commit()
     logger.info("session_cleanup", deleted=result.rowcount)

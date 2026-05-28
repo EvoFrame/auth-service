@@ -65,6 +65,7 @@ async def oauth_login(
     user = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if not user:
         import secrets as _secrets
+
         user = User(
             email=email,
             password_hash=_ph.hash(_secrets.token_urlsafe(32)),

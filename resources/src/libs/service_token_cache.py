@@ -11,8 +11,8 @@ logger = structlog.get_logger()
 
 CACHE_KEY = "svc_token:{service_id}"
 LOCK_KEY = "svc_token_lock:{service_id}"
-LOCK_TTL = 15   # seconds — lock expires if holder crashes
-BUFFER = 60     # refresh this many seconds before actual expiry
+LOCK_TTL = 15  # seconds — lock expires if holder crashes
+BUFFER = 60  # refresh this many seconds before actual expiry
 
 
 class ServiceTokenCache:

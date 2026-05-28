@@ -29,10 +29,14 @@ def _generate_rsa_keys() -> tuple[str, str]:
         serialization.PrivateFormat.TraditionalOpenSSL,
         serialization.NoEncryption(),
     ).decode()
-    pub = key.public_key().public_bytes(
-        serialization.Encoding.PEM,
-        serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode()
+    pub = (
+        key.public_key()
+        .public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode()
+    )
     return priv, pub
 
 
@@ -51,8 +55,7 @@ os.environ.update(
     {
         "DATABASE_URL": _pg_ctr.get_connection_url().replace("psycopg2", "asyncpg"),
         "REDIS_URL": (
-            f"redis://{_redis_ctr.get_container_host_ip()}"
-            f":{_redis_ctr.get_exposed_port(6379)}/0"
+            f"redis://{_redis_ctr.get_container_host_ip()}:{_redis_ctr.get_exposed_port(6379)}/0"
         ),
         "RS256_PRIVATE_KEY": _TEST_PRIVATE_KEY,
         "RS256_PUBLIC_KEY": _TEST_PUBLIC_KEY,
@@ -113,5 +116,7 @@ async def client(db_engine, redis_client) -> AsyncGenerator[AsyncClient]:
     app.state.redis = redis_client
     app.state.publisher = EventPublisher(redis_client)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac

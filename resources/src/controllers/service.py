@@ -35,12 +35,14 @@ async def issue_service_token(
     session: AsyncSession,
     publisher: EventPublisher,
 ) -> ServiceTokenResponse:
-    client = (await session.execute(
-        select(ServiceClient).where(
-            ServiceClient.service_id == body.service_id,
-            ServiceClient.is_active == True,  # noqa: E712
+    client = (
+        await session.execute(
+            select(ServiceClient).where(
+                ServiceClient.service_id == body.service_id,
+                ServiceClient.is_active == True,  # noqa: E712
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if not client:
         raise AppError("INVALID_CREDENTIALS", "Invalid service credentials.", status_code=401)

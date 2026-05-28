@@ -44,8 +44,8 @@ _REFRESH_KEY = "refresh:{jti}"
 _VERIFY_KEY = "email_verify:{token}"
 _RESET_KEY = "pwd_reset:{token}"
 
-_VERIFY_TTL = 86400    # 24 h
-_RESET_TTL = 3600      # 1 h
+_VERIFY_TTL = 86400  # 24 h
+_RESET_TTL = 3600  # 1 h
 
 
 def _issue_access_token(user: User, roles: list[str]) -> tuple[str, str]:
@@ -161,12 +161,14 @@ async def refresh_token(
     except ValueError:
         raise AppError("INVALID_REFRESH_TOKEN", "Invalid refresh token format.", status_code=401)
 
-    rs = (await session.execute(
-        select(RefreshSession).where(
-            RefreshSession.id == uuid.UUID(session_id),
-            RefreshSession.revoked_at.is_(None),
+    rs = (
+        await session.execute(
+            select(RefreshSession).where(
+                RefreshSession.id == uuid.UUID(session_id),
+                RefreshSession.revoked_at.is_(None),
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if not rs:
         raise AppError("INVALID_REFRESH_TOKEN", "Refresh token not found or revoked.", status_code=401)
@@ -218,12 +220,14 @@ async def logout(refresh_token_str: str, session: AsyncSession, redis) -> dict:
     except ValueError:
         return {"message": "Logged out successfully."}
 
-    rs = (await session.execute(
-        select(RefreshSession).where(
-            RefreshSession.id == session_uuid,
-            RefreshSession.revoked_at.is_(None),
+    rs = (
+        await session.execute(
+            select(RefreshSession).where(
+                RefreshSession.id == session_uuid,
+                RefreshSession.revoked_at.is_(None),
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if rs:
         rs.revoked_at = datetime.now(UTC)
@@ -346,6 +350,7 @@ async def password_reset_confirm(
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 async def _get_user_roles(user_id: uuid.UUID, session: AsyncSession) -> list[str]:
     result = await session.execute(

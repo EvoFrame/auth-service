@@ -30,9 +30,10 @@ class Settings(BaseSettings):
     def expand_newlines(cls, v: str) -> str:
         """Allow PEM keys stored as single-line strings with literal \\n escapes."""
         return v.replace("\\n", "\n")
-    ACCESS_TOKEN_TTL: int = 900        # 15 min — user access tokens
-    SERVICE_TOKEN_TTL: int = 300       # 5 min  — M2M service tokens
-    REFRESH_TOKEN_TTL: int = 2592000   # 30 days
+
+    ACCESS_TOKEN_TTL: int = 900  # 15 min — user access tokens
+    SERVICE_TOKEN_TTL: int = 300  # 5 min  — M2M service tokens
+    REFRESH_TOKEN_TTL: int = 2592000  # 30 days
 
     # Password hashing (Argon2)
     ARGON2_TIME_COST: int = 2

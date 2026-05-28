@@ -72,6 +72,7 @@ async def _get_current_user(
 
 # ── Registration & login ──────────────────────────────────────────────────────
 
+
 @router.post("/register", status_code=201)
 async def register(
     body: RegisterRequest,
@@ -112,6 +113,7 @@ async def logout(
 
 # ── Token introspection ───────────────────────────────────────────────────────
 
+
 @router.get("/introspect", response_model=IntrospectResponse)
 async def introspect(authorization: str | None = Header(default=None)):
     return await auth_ctrl.introspect(authorization)
@@ -123,6 +125,7 @@ async def permissions(user_id: str, session: AsyncSession = Depends(get_session)
 
 
 # ── Email & password ──────────────────────────────────────────────────────────
+
 
 @router.post("/verify-email")
 async def verify_email(
@@ -155,6 +158,7 @@ async def password_reset_confirm(
 
 # ── MFA ───────────────────────────────────────────────────────────────────────
 
+
 @router.post("/mfa/enable", response_model=MFAEnableResponse)
 async def mfa_enable(
     session: AsyncSession = Depends(get_session),
@@ -186,6 +190,7 @@ async def mfa_disable(
 
 # ── Service (M2M) tokens ──────────────────────────────────────────────────────
 
+
 @router.post("/service/token", response_model=ServiceTokenResponse)
 async def service_token(
     body: ServiceTokenRequest,
@@ -201,6 +206,7 @@ async def service_introspect(body: ServiceIntrospectRequest):
 
 
 # ── OAuth2 ────────────────────────────────────────────────────────────────────
+
 
 @router.post("/oauth/{provider}")
 async def oauth_login(

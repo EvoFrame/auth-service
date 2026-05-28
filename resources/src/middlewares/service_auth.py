@@ -48,9 +48,7 @@ class ServiceAuthMiddleware(BaseHTTPMiddleware):
         except jwt.ExpiredSignatureError:
             logger.warning("service_token_expired", path=request.url.path)
             await self._emit_denied(request, "expired")
-            return JSONResponse(
-                status_code=403, content={"detail": "Service token expired"}
-            )
+            return JSONResponse(status_code=403, content={"detail": "Service token expired"})
         except jwt.InvalidSignatureError:
             logger.error("service_token_invalid_signature", path=request.url.path)
             await self._emit_denied(request, "invalid_signature")

@@ -30,9 +30,7 @@ async def mfa_enable(user: User, session: AsyncSession) -> MFAEnableResponse:
     user.totp_secret_enc = enc_secret
     await session.commit()
 
-    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
-        name=user.email, issuer_name=settings.SERVICE_NAME
-    )
+    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=user.email, issuer_name=settings.SERVICE_NAME)
     return MFAEnableResponse(totp_uri=totp_uri, secret=secret)
 
 
