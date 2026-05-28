@@ -65,6 +65,12 @@ tasks:
     deps: [_guard]
     cmd: docker compose --profile dev-stack up -d --remove-orphans
 
+  dev-stack-ui:
+    aliases: [ds-ui]
+    desc: Start db + redis + their UIs (pgAdmin, RedisInsight)
+    deps: [_guard]
+    cmd: docker compose --profile dev-stack --profile ui up -d --remove-orphans
+
   # ---- app only --------------------------------------------------------
   app-up:
     desc: Start app service only
