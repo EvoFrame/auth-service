@@ -10,4 +10,4 @@ tasks:
   start:
     desc: Start Uvicorn with --reload
     deps: [_guard]
-    cmd: uv run uvicorn resources.server:app --reload --host 0.0.0.0 --port 8080
+    cmd: uv run uvicorn server:app --app-dir resources --reload --host 0.0.0.0 --port 8080
