@@ -54,15 +54,14 @@ atexit.register(_redis_ctr.stop)
 os.environ.update(
     {
         "DATABASE_URL": _pg_ctr.get_connection_url().replace("psycopg2", "asyncpg"),
-        "REDIS_URL": (
-            f"redis://{_redis_ctr.get_container_host_ip()}:{_redis_ctr.get_exposed_port(6379)}/0"
-        ),
+        "REDIS_URL": (f"redis://{_redis_ctr.get_container_host_ip()}:{_redis_ctr.get_exposed_port(6379)}/0"),
         "RS256_PRIVATE_KEY": _TEST_PRIVATE_KEY,
         "RS256_PUBLIC_KEY": _TEST_PUBLIC_KEY,
         "SERVICE_SECRET": "test-service-secret",
         "TOTP_ENCRYPTION_KEY": _TEST_FERNET_KEY,
         "APP_ENV": "test",
         "DEBUG": "true",
+        "SKIP_SERVICE_AUTH": "true",
     }
 )
 
@@ -116,7 +115,5 @@ async def client(db_engine, redis_client) -> AsyncGenerator[AsyncClient]:
     app.state.redis = redis_client
     app.state.publisher = EventPublisher(redis_client)
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
