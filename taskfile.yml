@@ -35,6 +35,7 @@ tasks:
     desc: "▶  Start dev server (watch mode) + full dev stack (db + redis)"
     cmds:
       - task docker:dev-stack-up
+      - task db:migrate
       - task dev:start
 
   test:
