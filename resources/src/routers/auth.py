@@ -65,7 +65,7 @@ async def _get_current_user(
         raise AppError("INVALID_TOKEN", "Not a user token.", status_code=401)
 
     user = await session.get(User, uuid.UUID(payload["sub"]))
-    if not user or not user.is_active:
+    if not user or not user.is_active or user.deleted_at is not None:
         raise AppError("USER_NOT_FOUND", "User not found or disabled.", status_code=404)
     return user
 
@@ -215,3 +215,25 @@ async def oauth_login(
     session: AsyncSession = Depends(get_session),
 ):
     return await oauth_ctrl.oauth_login(provider, code, session)
+
+
+# ── Soft delete ───────────────────────────────────────────────────────────────
+
+
+@router.delete("/users/me", status_code=200)
+async def delete_user(
+    session: AsyncSession = Depends(get_session),
+    redis=Depends(get_redis),
+    publisher: EventPublisher = Depends(_get_publisher),
+    user: User = Depends(_get_current_user),
+):
+    return await auth_ctrl.delete_user(user, session, redis, publisher)
+
+
+@router.delete("/service/clients/{service_id}", status_code=200)
+async def delete_service_client(
+    service_id: str,
+    session: AsyncSession = Depends(get_session),
+    publisher: EventPublisher = Depends(_get_publisher),
+):
+    return await service_ctrl.delete_service_client(service_id, session, publisher)

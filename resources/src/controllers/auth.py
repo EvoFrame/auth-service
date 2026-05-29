@@ -100,7 +100,7 @@ async def login(
     request: Request,
 ) -> TokenResponse:
     user = (await session.execute(select(User).where(User.email == body.email))).scalar_one_or_none()
-    if not user:
+    if not user or user.deleted_at is not None:
         raise AppError("INVALID_CREDENTIALS", "Invalid email or password.", status_code=401)
 
     try:
@@ -185,7 +185,7 @@ async def refresh_token(
     await redis.delete(_REFRESH_KEY.format(jti=session_id))
 
     user = await session.get(User, rs.user_id)
-    if not user or not user.is_active:
+    if not user or not user.is_active or user.deleted_at is not None:
         raise AppError("ACCOUNT_DISABLED", "Account not found or disabled.", status_code=403)
 
     roles = await _get_user_roles(user.id, session)
@@ -347,6 +347,31 @@ async def password_reset_confirm(
 
     await publisher.publish("auth.user.password_reset", {"user_id": str(user.id), "email": user.email})
     return {"message": "Password reset successfully."}
+
+
+async def delete_user(user: User, session: AsyncSession, redis, publisher: EventPublisher) -> dict:
+    if user.deleted_at is not None:
+        raise AppError("USER_ALREADY_DELETED", "User account is already deleted.", status_code=409)
+
+    now = datetime.now(UTC)
+
+    active_sessions_result = await session.execute(
+        select(RefreshSession).where(
+            RefreshSession.user_id == user.id,
+            RefreshSession.revoked_at.is_(None),
+        )
+    )
+    active_sessions = active_sessions_result.scalars().all()
+    for rs in active_sessions:
+        rs.revoked_at = now
+        await redis.delete(_REFRESH_KEY.format(jti=str(rs.id)))
+
+    user.deleted_at = now
+    await session.commit()
+
+    await publisher.publish("auth.user.deleted", {"user_id": str(user.id), "email": user.email})
+    logger.info("user_deleted", user_id=str(user.id))
+    return {"message": "User account deleted successfully."}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

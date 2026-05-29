@@ -40,6 +40,7 @@ async def issue_service_token(
             select(ServiceClient).where(
                 ServiceClient.service_id == body.service_id,
                 ServiceClient.is_active == True,  # noqa: E712
+                ServiceClient.deleted_at.is_(None),
             )
         )
     ).scalar_one_or_none()
@@ -107,3 +108,28 @@ async def introspect_service_token(body: ServiceIntrospectRequest) -> ServiceInt
         exp=payload["exp"],
         iat=payload["iat"],
     )
+
+
+async def delete_service_client(
+    service_id: str,
+    session: AsyncSession,
+    publisher: EventPublisher,
+) -> dict:
+    client = (
+        await session.execute(
+            select(ServiceClient).where(ServiceClient.service_id == service_id)
+        )
+    ).scalar_one_or_none()
+
+    if not client:
+        raise AppError("SERVICE_CLIENT_NOT_FOUND", "Service client not found.", status_code=404)
+
+    if client.deleted_at is not None:
+        raise AppError("SERVICE_CLIENT_ALREADY_DELETED", "Service client is already deleted.", status_code=409)
+
+    client.deleted_at = datetime.now(UTC)
+    await session.commit()
+
+    await publisher.publish("auth.service.client_deleted", {"service_id": service_id})
+    logger.info("service_client_deleted", service_id=service_id)
+    return {"message": "Service client deleted successfully."}
