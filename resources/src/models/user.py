@@ -15,6 +15,8 @@ class User(SQLModel, table=True):
     is_verified: bool = Field(default=False, nullable=False)
     mfa_enabled: bool = Field(default=False, nullable=False)
     totp_secret_enc: str | None = Field(default=None, nullable=True)
+    backup_email: str | None = Field(default=None, nullable=True, unique=True, index=True)
+    backup_email_verified: bool = Field(default=False, nullable=False)
     deleted_at: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True, default=None))
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))

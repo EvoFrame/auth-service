@@ -408,6 +408,19 @@ async def update_me(user: User, body: UserSelfUpdateRequest, session: AsyncSessi
             raise AppError("EMAIL_TAKEN", "Email is already registered.", status_code=409)
         user.email = body.email
 
+    if body.backup_email is not None:
+        conflict = (
+            await session.execute(
+                select(User).where(User.backup_email == body.backup_email, User.id != user.id)
+            )
+        ).scalar_one_or_none()
+        if conflict:
+            raise AppError("BACKUP_EMAIL_TAKEN", "Backup email is already in use.", status_code=409)
+        if body.backup_email == user.email:
+            raise AppError("BACKUP_EMAIL_SAME_AS_PRIMARY", "Backup email must differ from primary email.", status_code=409)
+        user.backup_email = body.backup_email
+        user.backup_email_verified = False  # reset when address changes
+
     await session.commit()
     await session.refresh(user)
     return UserResponse.model_validate(user)
@@ -484,10 +497,26 @@ async def update_user(user_id: str, body: UserUpdateRequest, session: AsyncSessi
             raise AppError("EMAIL_TAKEN", "Email is already registered.", status_code=409)
         user.email = body.email
 
+    if body.backup_email is not None:
+        conflict = (
+            await session.execute(
+                select(User).where(User.backup_email == body.backup_email, User.id != user.id)
+            )
+        ).scalar_one_or_none()
+        if conflict:
+            raise AppError("BACKUP_EMAIL_TAKEN", "Backup email is already in use.", status_code=409)
+        if body.backup_email == user.email:
+            raise AppError("BACKUP_EMAIL_SAME_AS_PRIMARY", "Backup email must differ from primary email.", status_code=409)
+        user.backup_email = body.backup_email
+        if body.backup_email_verified is None:
+            user.backup_email_verified = False  # reset when address changes unless explicitly set
+
     if body.is_active is not None:
         user.is_active = body.is_active
     if body.is_verified is not None:
         user.is_verified = body.is_verified
+    if body.backup_email_verified is not None:
+        user.backup_email_verified = body.backup_email_verified
 
     await session.commit()
     await session.refresh(user)

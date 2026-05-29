@@ -64,6 +64,8 @@ class UserResponse(BaseModel):
     is_active: bool
     is_verified: bool
     mfa_enabled: bool
+    backup_email: str | None
+    backup_email_verified: bool
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None
@@ -75,6 +77,7 @@ class UserSelfUpdateRequest(BaseModel):
     """Fields a user may update on their own account."""
 
     email: EmailStr | None = None
+    backup_email: EmailStr | None = None
 
 
 class UserUpdateRequest(BaseModel):
@@ -83,3 +86,5 @@ class UserUpdateRequest(BaseModel):
     email: EmailStr | None = None
     is_active: bool | None = None
     is_verified: bool | None = None
+    backup_email: EmailStr | None = None
+    backup_email_verified: bool | None = None
