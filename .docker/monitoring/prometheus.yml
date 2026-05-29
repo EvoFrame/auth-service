@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: auth-service
+    static_configs:
+      - targets: ["auth-service-app:8080"]
+        labels:
+          service: auth-service
+          component: app
+
+  - job_name: auth-service-postgres
+    static_configs:
+      - targets: ["auth-service-db-exporter:9187"]
+        labels:
+          service: auth-service
+          component: postgres
+
+  - job_name: auth-service-redis
+    static_configs:
+      - targets: ["auth-service-redis-exporter:9121"]
+        labels:
+          service: auth-service
+          component: redis

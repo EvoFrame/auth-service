@@ -35,3 +35,4 @@ networks:
 include:
   - path: .docker/dev-stacks/postgresql/compose.yml
   - path: .docker/dev-stacks/redis/compose.yml
+  - path: .docker/dev-stacks/monitoring/compose.yml
