@@ -1,0 +1,38 @@
+# Git
+.git
+.gitattributes
+.gitignore
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.ruff_cache/
+
+# Virtual environment
+.venv/
+
+# Local dev env files (never go into the image)
+**/*.env.local
+**/*.local.env
+
+# Dev tooling
+.devbox/
+devbox.json
+devbox.lock
+taskfile.yml
+taskfiles/
+
+# Keys (mounted at runtime via secrets/env)
+*.pem
+
+# Tests
+resources/tests/
+
+# Docs / notes
+README.md
