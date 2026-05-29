@@ -80,7 +80,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(fastapi_requests_total{app_name=\"$app_name\", path!=\"/metrics\"})",
+          "expr": "sum(http_requests_total{job=\"$app_name\", handler!=\"/metrics\"})",
           "instant": true,
           "interval": "",
           "legendFormat": "",
@@ -162,7 +162,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "fastapi_requests_total{app_name=\"$app_name\", path!=\"/metrics\"}",
+          "expr": "http_requests_total{job=\"$app_name\", handler!=\"/metrics\"}",
           "instant": true,
           "interval": "",
           "legendFormat": "{{method}} {{path}}",
@@ -265,7 +265,7 @@
             "uid": "Prometheus"
           },
           "exemplar": true,
-          "expr": "fastapi_requests_duration_seconds_sum{app_name=\"$app_name\"} / fastapi_requests_duration_seconds_count{app_name=\"$app_name\"}",
+          "expr": "http_request_duration_seconds_sum{job=\"$app_name\"} / http_request_duration_seconds_count{job=\"$app_name\"}",
           "interval": "",
           "legendFormat": "{{method}} {{path}}",
           "refId": "A"
@@ -333,7 +333,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(fastapi_exceptions_total{app_name=\"$app_name\"})",
+          "expr": "sum(http_requests_total{job=\"$app_name\", status=~\"5..\", handler!=\"/metrics\"})",
           "instant": true,
           "interval": "",
           "legendFormat": "",
@@ -434,7 +434,7 @@
             "uid": "Prometheus"
           },
           "exemplar": true,
-          "expr": "sum by(path) (fastapi_responses_total{app_name=\"$app_name\", status_code=~\"2.*\", path!=\"/metrics\"}) / sum by(path) (fastapi_responses_total{app_name=\"$app_name\", path!=\"/metrics\"})",
+          "expr": "sum by(handler) (http_requests_total{job=\"$app_name\", status=\"2xx\", handler!=\"/metrics\"}) / sum by(handler) (http_requests_total{job=\"$app_name\", handler!=\"/metrics\"})",
           "interval": "",
           "legendFormat": "{{path}}",
           "refId": "A"
@@ -532,7 +532,7 @@
             "uid": "Prometheus"
           },
           "exemplar": true,
-          "expr": "sum by(path) (fastapi_responses_total{app_name=\"$app_name\", status_code=~\"5.*\", path!=\"/metrics\"}) / sum by(path) (fastapi_responses_total{app_name=\"$app_name\", path!=\"/metrics\"})",
+          "expr": "sum by(handler) (http_requests_total{job=\"$app_name\", status=\"5xx\", handler!=\"/metrics\"}) / sum by(handler) (http_requests_total{job=\"$app_name\", handler!=\"/metrics\"})",
           "interval": "",
           "legendFormat": "{{path}}",
           "refId": "A"
@@ -629,7 +629,7 @@
             "uid": "Prometheus"
           },
           "exemplar": true,
-          "expr": "histogram_quantile(.99,sum(rate(fastapi_requests_duration_seconds_bucket{app_name=\"$app_name\", path!=\"/metrics\"}[1m])) by(path, le))",
+          "expr": "histogram_quantile(.99,sum(rate(http_request_duration_seconds_bucket{job=\"$app_name\", handler!=\"/metrics\"}[1m])) by(handler, le))",
           "interval": "",
           "legendFormat": "{{path}}",
           "refId": "A"
@@ -725,7 +725,7 @@
             "uid": "Prometheus"
           },
           "exemplar": true,
-          "expr": "fastapi_requests_in_progress{app_name=\"$app_name\", path!=\"/metrics\"}",
+          "expr": "vector(0)",
           "interval": "",
           "legendFormat": "{{path}}",
           "refId": "A"
@@ -822,7 +822,7 @@
             "uid": "Prometheus"
           },
           "exemplar": true,
-          "expr": "rate(fastapi_requests_total{app_name=\"$app_name\"}[1m])",
+          "expr": "rate(http_requests_total{job=\"$app_name\"}[1m])",
           "interval": "",
           "legendFormat": "{{path}}",
           "refId": "A"
@@ -892,7 +892,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "ERROR"
+              "options": "error"
             },
             "properties": [
               {
@@ -907,7 +907,22 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "INFO"
+              "options": "warning"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "info"
             },
             "properties": [
               {
@@ -922,7 +937,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "CRITICAL"
+              "options": "critical"
             },
             "properties": [
               {
@@ -963,8 +978,8 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "expr": "sum by(type) (rate({compose_service=~\"app-.*\"} | pattern `<date> <time> <type> <logger> <code> [<_>=<trace_id> <_>=<span_id> <_>=<service_name>] - <msg>` | type != \"\" |= \"$log_keyword\" [1m]))",
-          "legendFormat": "{{type}}",
+          "expr": "sum by(level) (rate({compose_service=\"auth-service\"} | json | level != \"\" |= \"$log_keyword\" [1m]))",
+          "legendFormat": "{{level}}",
           "refId": "A"
         }
       ],
@@ -990,9 +1005,9 @@
         "prettifyLogMessage": false,
         "showCommonLabels": false,
         "showLabels": false,
-        "showTime": false,
+        "showTime": true,
         "sortOrder": "Descending",
-        "wrapLogMessage": true
+        "wrapLogMessage": false
       },
       "pluginVersion": "12.0.0",
       "targets": [
@@ -1001,9 +1016,18 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "expr": "{compose_service=~\"app-.*\"} | pattern `<date> <time> <type> <logger> <code> [<_>=<trace_id> <_>=<span_id> <_>=<service_name>] - <msg>` | line_format \"{{.compose_service}}\\t{{.type}}\\t trace_id={{.trace_id}}\\t {{.msg}}\" |= \"$log_keyword\"",
-          "hide": false,
-          "refId": "A"
+          "expr": "{compose_service=\"auth-service\"} | json | line_format \"{{if .method}}[{{.level}}] {{.method}} {{.path}} \u2192 {{.status}} ({{.duration_ms}}ms) req={{.request_id}}{{else}}[{{.level}}] ({{.logger}}) {{.event}}{{end}}\" |= \"$log_keyword\"",
+          "refId": "A",
+          "hide": false
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "Loki"
+          },
+          "expr": "{compose_service=\"auth-service\"} | json | __error__!=\"\" |= \"$log_keyword\"",
+          "refId": "B",
+          "hide": false
         }
       ],
       "title": "Log of All FastAPI App",
@@ -1023,11 +1047,11 @@
         },
         "definition": "label_values(fastapi_app_info{}, app_name)",
         "includeAll": false,
-        "label": "Application Name",
+        "label": "Job",
         "name": "app_name",
         "options": [],
         "query": {
-          "query": "label_values(fastapi_app_info{}, app_name)",
+          "query": "label_values(http_requests_total, job)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
