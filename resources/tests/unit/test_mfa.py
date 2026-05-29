@@ -140,7 +140,7 @@ async def test_mfa_disable_raises_if_not_enabled():
 # ── _check_totp helper ────────────────────────────────────────────────────────
 
 
-def test_check_totp_raises_when_no_secret():
+async def test_check_totp_raises_when_no_secret():
     user = _make_user(totp_secret_enc=None)
     with pytest.raises(AppError) as exc:
         _check_totp(user, "000000")
