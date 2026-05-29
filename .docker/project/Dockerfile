@@ -21,7 +21,8 @@ FROM python:3.13-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app/resources"
 
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
