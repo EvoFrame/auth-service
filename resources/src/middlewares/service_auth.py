@@ -21,7 +21,7 @@ class ServiceAuthMiddleware(BaseHTTPMiddleware):
         "/openapi",
         "/metrics",
         "/redoc",
-        "/api/v1/auth/service/token",
+        "/api/v1/service-clients/token",
     )
 
     async def dispatch(self, request: Request, call_next):

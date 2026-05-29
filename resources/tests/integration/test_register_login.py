@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-BASE = "/api/v1/auth"
+BASE = "/api/v1/users"
 
 
 @pytest.mark.asyncio

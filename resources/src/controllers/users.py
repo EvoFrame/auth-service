@@ -1,5 +1,4 @@
-"""Auth controller — core token operations: register, login, refresh, logout,
-introspect, email verification, password reset."""
+"""Users controller — auth flows + CRUD."""
 
 import secrets
 import uuid
@@ -10,16 +9,18 @@ import structlog
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Request
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.settings import settings
 from src.events.publisher import EventPublisher
 from src.libs.errors import AppError
-from src.models.rbac import Role, UserRole
+from src.libs.pagination import PagedResponse, paginate
+from src.models.rbac import Permission, Role, RolePermission, UserRole
 from src.models.session import RefreshSession
 from src.models.user import User
-from src.schemas.auth import (
+from src.schemas.rbac import PermissionsResponse
+from src.schemas.users import (
     IntrospectResponse,
     LoginRequest,
     PasswordResetConfirm,
@@ -27,9 +28,11 @@ from src.schemas.auth import (
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
+    UserResponse,
+    UserSelfUpdateRequest,
+    UserUpdateRequest,
     VerifyEmailRequest,
 )
-from src.schemas.rbac import PermissionsResponse
 
 logger = structlog.get_logger()
 
@@ -48,6 +51,9 @@ _VERIFY_TTL = 86400  # 24 h
 _RESET_TTL = 3600  # 1 h
 
 
+# ── Helpers (also imported by oauth controller) ───────────────────────────────
+
+
 def _issue_access_token(user: User, roles: list[str]) -> tuple[str, str]:
     """Return (encoded_jwt, jti)."""
     jti = str(uuid.uuid4())
@@ -64,6 +70,30 @@ def _issue_access_token(user: User, roles: list[str]) -> tuple[str, str]:
     }
     token = jwt.encode(payload, settings.RS256_PRIVATE_KEY, algorithm="RS256")
     return token, jti
+
+
+async def _get_user_roles(user_id: uuid.UUID, session: AsyncSession) -> list[str]:
+    result = await session.execute(
+        select(Role).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == user_id)
+    )
+    return [r.name for r in result.scalars().all()]
+
+
+async def _verify_totp(user: User, code: str) -> None:
+    import pyotp
+    from cryptography.fernet import Fernet
+
+    if not user.totp_secret_enc or not settings.TOTP_ENCRYPTION_KEY:
+        raise AppError("MFA_NOT_CONFIGURED", "MFA is not configured for this account.", status_code=403)
+
+    f = Fernet(settings.TOTP_ENCRYPTION_KEY.encode())
+    secret = f.decrypt(user.totp_secret_enc.encode()).decode()
+    totp = pyotp.TOTP(secret)
+    if not totp.verify(code, valid_window=1):
+        raise AppError("INVALID_TOTP", "Invalid TOTP code.", status_code=401)
+
+
+# ── Auth flows ────────────────────────────────────────────────────────────────
 
 
 async def register(
@@ -268,8 +298,6 @@ async def introspect(authorization: str | None) -> IntrospectResponse:
 
 
 async def get_permissions(user_id: str, session: AsyncSession) -> PermissionsResponse:
-    from src.models.rbac import Permission, RolePermission
-
     uid = uuid.UUID(user_id)
     roles_result = await session.execute(
         select(Role).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == uid)
@@ -349,6 +377,29 @@ async def password_reset_confirm(
     return {"message": "Password reset successfully."}
 
 
+# ── Self-service ──────────────────────────────────────────────────────────────
+
+
+def get_me(user: User) -> UserResponse:
+    return UserResponse.model_validate(user)
+
+
+async def update_me(user: User, body: UserSelfUpdateRequest, session: AsyncSession) -> UserResponse:
+    if body.email is not None:
+        conflict = (
+            await session.execute(
+                select(User).where(User.email == body.email, User.id != user.id)
+            )
+        ).scalar_one_or_none()
+        if conflict:
+            raise AppError("EMAIL_TAKEN", "Email is already registered.", status_code=409)
+        user.email = body.email
+
+    await session.commit()
+    await session.refresh(user)
+    return UserResponse.model_validate(user)
+
+
 async def delete_user(user: User, session: AsyncSession, redis, publisher: EventPublisher) -> dict:
     if user.deleted_at is not None:
         raise AppError("USER_ALREADY_DELETED", "User account is already deleted.", status_code=409)
@@ -361,8 +412,7 @@ async def delete_user(user: User, session: AsyncSession, redis, publisher: Event
             RefreshSession.revoked_at.is_(None),
         )
     )
-    active_sessions = active_sessions_result.scalars().all()
-    for rs in active_sessions:
+    for rs in active_sessions_result.scalars().all():
         rs.revoked_at = now
         await redis.delete(_REFRESH_KEY.format(jti=str(rs.id)))
 
@@ -374,25 +424,70 @@ async def delete_user(user: User, session: AsyncSession, redis, publisher: Event
     return {"message": "User account deleted successfully."}
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Admin CRUD ────────────────────────────────────────────────────────────────
 
 
-async def _get_user_roles(user_id: uuid.UUID, session: AsyncSession) -> list[str]:
-    result = await session.execute(
-        select(Role).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == user_id)
-    )
-    return [r.name for r in result.scalars().all()]
+async def list_users(
+    session: AsyncSession,
+    page: int,
+    page_size: int,
+    include_deleted: bool = False,
+) -> PagedResponse[UserResponse]:
+    base_q = select(User)
+    count_q = select(func.count()).select_from(User)
+    if not include_deleted:
+        base_q = base_q.where(User.deleted_at.is_(None))
+        count_q = count_q.where(User.deleted_at.is_(None))
+
+    total = (await session.execute(count_q)).scalar_one()
+    users = (
+        await session.execute(base_q.offset((page - 1) * page_size).limit(page_size))
+    ).scalars().all()
+
+    return paginate([UserResponse.model_validate(u) for u in users], total, page, page_size)
 
 
-async def _verify_totp(user: User, code: str) -> None:
-    import pyotp
-    from cryptography.fernet import Fernet
+async def get_user(user_id: str, session: AsyncSession) -> UserResponse:
+    user = await session.get(User, uuid.UUID(user_id))
+    if not user:
+        raise AppError("USER_NOT_FOUND", "User not found.", status_code=404)
+    return UserResponse.model_validate(user)
 
-    if not user.totp_secret_enc or not settings.TOTP_ENCRYPTION_KEY:
-        raise AppError("MFA_NOT_CONFIGURED", "MFA is not configured for this account.", status_code=403)
 
-    f = Fernet(settings.TOTP_ENCRYPTION_KEY.encode())
-    secret = f.decrypt(user.totp_secret_enc.encode()).decode()
-    totp = pyotp.TOTP(secret)
-    if not totp.verify(code, valid_window=1):
-        raise AppError("INVALID_TOTP", "Invalid TOTP code.", status_code=401)
+async def update_user(user_id: str, body: UserUpdateRequest, session: AsyncSession) -> UserResponse:
+    user = await session.get(User, uuid.UUID(user_id))
+    if not user:
+        raise AppError("USER_NOT_FOUND", "User not found.", status_code=404)
+    if user.deleted_at is not None:
+        raise AppError("USER_DELETED", "Cannot update a deleted user.", status_code=409)
+
+    if body.email is not None:
+        conflict = (
+            await session.execute(
+                select(User).where(User.email == body.email, User.id != user.id)
+            )
+        ).scalar_one_or_none()
+        if conflict:
+            raise AppError("EMAIL_TAKEN", "Email is already registered.", status_code=409)
+        user.email = body.email
+
+    if body.is_active is not None:
+        user.is_active = body.is_active
+    if body.is_verified is not None:
+        user.is_verified = body.is_verified
+
+    await session.commit()
+    await session.refresh(user)
+    return UserResponse.model_validate(user)
+
+
+async def admin_delete_user(
+    user_id: str,
+    session: AsyncSession,
+    redis,
+    publisher: EventPublisher,
+) -> dict:
+    user = await session.get(User, uuid.UUID(user_id))
+    if not user:
+        raise AppError("USER_NOT_FOUND", "User not found.", status_code=404)
+    return await delete_user(user, session, redis, publisher)

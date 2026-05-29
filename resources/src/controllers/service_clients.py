@@ -1,5 +1,6 @@
-"""Service token controller — M2M token issuance and introspection."""
+"""Service clients controller — M2M token flows + CRUD."""
 
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -7,14 +8,19 @@ import jwt
 import structlog
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.settings import settings
 from src.events.publisher import EventPublisher
 from src.libs.errors import AppError
+from src.libs.pagination import PagedResponse, paginate
 from src.models.service_client import ServiceClient
-from src.schemas.service import (
+from src.schemas.service_clients import (
+    ServiceClientCreateRequest,
+    ServiceClientCreateResponse,
+    ServiceClientResponse,
+    ServiceClientUpdateRequest,
     ServiceIntrospectRequest,
     ServiceIntrospectResponse,
     ServiceTokenRequest,
@@ -28,6 +34,9 @@ _ph = PasswordHasher(
     memory_cost=settings.ARGON2_MEMORY_COST,
     parallelism=settings.ARGON2_PARALLELISM,
 )
+
+
+# ── Token flows ───────────────────────────────────────────────────────────────
 
 
 async def issue_service_token(
@@ -110,15 +119,95 @@ async def introspect_service_token(body: ServiceIntrospectRequest) -> ServiceInt
     )
 
 
+# ── CRUD ──────────────────────────────────────────────────────────────────────
+
+
+async def create_service_client(
+    body: ServiceClientCreateRequest,
+    session: AsyncSession,
+    publisher: EventPublisher,
+) -> ServiceClientCreateResponse:
+    existing = (
+        await session.execute(select(ServiceClient).where(ServiceClient.service_id == body.service_id))
+    ).scalar_one_or_none()
+    if existing:
+        raise AppError("SERVICE_ID_TAKEN", "Service ID is already registered.", status_code=409)
+
+    secret = secrets.token_urlsafe(48)
+    client = ServiceClient(service_id=body.service_id, secret_hash=_ph.hash(secret))
+    session.add(client)
+    await session.commit()
+    await session.refresh(client)
+
+    await publisher.publish("auth.service.client_created", {"service_id": body.service_id})
+    logger.info("service_client_created", service_id=body.service_id)
+
+    return ServiceClientCreateResponse(
+        id=client.id,
+        service_id=client.service_id,
+        service_secret=secret,
+        is_active=client.is_active,
+        created_at=client.created_at,
+    )
+
+
+async def list_service_clients(
+    session: AsyncSession,
+    page: int,
+    page_size: int,
+    include_deleted: bool = False,
+) -> PagedResponse[ServiceClientResponse]:
+    base_q = select(ServiceClient)
+    count_q = select(func.count()).select_from(ServiceClient)
+    if not include_deleted:
+        base_q = base_q.where(ServiceClient.deleted_at.is_(None))
+        count_q = count_q.where(ServiceClient.deleted_at.is_(None))
+
+    total = (await session.execute(count_q)).scalar_one()
+    clients = (
+        await session.execute(base_q.offset((page - 1) * page_size).limit(page_size))
+    ).scalars().all()
+
+    return paginate([ServiceClientResponse.model_validate(c) for c in clients], total, page, page_size)
+
+
+async def get_service_client(service_id: str, session: AsyncSession) -> ServiceClientResponse:
+    client = (
+        await session.execute(select(ServiceClient).where(ServiceClient.service_id == service_id))
+    ).scalar_one_or_none()
+    if not client:
+        raise AppError("SERVICE_CLIENT_NOT_FOUND", "Service client not found.", status_code=404)
+    return ServiceClientResponse.model_validate(client)
+
+
+async def update_service_client(
+    service_id: str,
+    body: ServiceClientUpdateRequest,
+    session: AsyncSession,
+) -> ServiceClientResponse:
+    client = (
+        await session.execute(select(ServiceClient).where(ServiceClient.service_id == service_id))
+    ).scalar_one_or_none()
+    if not client:
+        raise AppError("SERVICE_CLIENT_NOT_FOUND", "Service client not found.", status_code=404)
+    if client.deleted_at is not None:
+        raise AppError("SERVICE_CLIENT_DELETED", "Cannot update a deleted service client.", status_code=409)
+
+    if body.is_active is not None:
+        client.is_active = body.is_active
+
+    await session.commit()
+    await session.refresh(client)
+    return ServiceClientResponse.model_validate(client)
+
+
 async def delete_service_client(
     service_id: str,
     session: AsyncSession,
     publisher: EventPublisher,
 ) -> dict:
     client = (
-        await session.execute(
-            select(ServiceClient).where(ServiceClient.service_id == service_id)
-        )
+        await session.execute(select(ServiceClient).where(ServiceClient.service_id == service_id))
     ).scalar_one_or_none()
 
     if not client:

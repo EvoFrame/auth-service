@@ -8,7 +8,7 @@ from httpx import AsyncClient
 from src.config.settings import settings
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-BASE = "/api/v1/auth"
+BASE = "/api/v1/users"
 
 
 def _make_token(payload_override: dict | None = None) -> str:

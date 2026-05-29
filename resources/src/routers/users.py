@@ -1,20 +1,20 @@
-"""Auth router — wires all endpoints from the service spec."""
+"""Users router — auth flows, self-service, and admin CRUD."""
 
-import uuid
-
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.controllers import auth as auth_ctrl
 from src.controllers import mfa as mfa_ctrl
 from src.controllers import oauth as oauth_ctrl
-from src.controllers import service as service_ctrl
+from src.controllers import users as users_ctrl
 from src.db.session import get_session
 from src.events.publisher import EventPublisher
-from src.libs.errors import AppError
+from src.libs.auth_deps import get_current_user, require_permission
+from src.libs.pagination import PagedResponse
 from src.models.user import User
 from src.redis.client import get_redis
-from src.schemas.auth import (
+from src.schemas.mfa import MFADisableRequest, MFAEnableResponse, MFAVerifyRequest
+from src.schemas.rbac import PermissionsResponse
+from src.schemas.users import (
     IntrospectResponse,
     LoginRequest,
     LogoutRequest,
@@ -23,51 +23,17 @@ from src.schemas.auth import (
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
+    UserResponse,
+    UserSelfUpdateRequest,
+    UserUpdateRequest,
     VerifyEmailRequest,
 )
-from src.schemas.mfa import MFADisableRequest, MFAEnableResponse, MFAVerifyRequest
-from src.schemas.rbac import PermissionsResponse
-from src.schemas.service import (
-    ServiceIntrospectRequest,
-    ServiceIntrospectResponse,
-    ServiceTokenRequest,
-    ServiceTokenResponse,
-)
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/users", tags=["users"])
 
 
 async def _get_publisher(redis=Depends(get_redis)) -> EventPublisher:
     return EventPublisher(redis)
-
-
-async def _get_current_user(
-    authorization: str | None = Header(default=None),
-    session: AsyncSession = Depends(get_session),
-) -> User:
-    """Resolve the authenticated user from the bearer token."""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise AppError("MISSING_TOKEN", "Authorization header required.", status_code=401)
-
-    import jwt as _jwt
-
-    from src.config.settings import settings
-
-    raw = authorization.removeprefix("Bearer ")
-    try:
-        payload = _jwt.decode(raw, settings.RS256_PUBLIC_KEY, algorithms=["RS256"])
-    except _jwt.ExpiredSignatureError:
-        raise AppError("TOKEN_EXPIRED", "Access token expired.", status_code=401)
-    except _jwt.InvalidTokenError:
-        raise AppError("INVALID_TOKEN", "Invalid access token.", status_code=401)
-
-    if payload.get("type") != "user":
-        raise AppError("INVALID_TOKEN", "Not a user token.", status_code=401)
-
-    user = await session.get(User, uuid.UUID(payload["sub"]))
-    if not user or not user.is_active or user.deleted_at is not None:
-        raise AppError("USER_NOT_FOUND", "User not found or disabled.", status_code=404)
-    return user
 
 
 # ── Registration & login ──────────────────────────────────────────────────────
@@ -80,7 +46,7 @@ async def register(
     redis=Depends(get_redis),
     publisher: EventPublisher = Depends(_get_publisher),
 ):
-    return await auth_ctrl.register(body, session, redis, publisher)
+    return await users_ctrl.register(body, session, redis, publisher)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -90,7 +56,7 @@ async def login(
     session: AsyncSession = Depends(get_session),
     redis=Depends(get_redis),
 ):
-    return await auth_ctrl.login(body, session, redis, request)
+    return await users_ctrl.login(body, session, redis, request)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -99,7 +65,7 @@ async def refresh(
     session: AsyncSession = Depends(get_session),
     redis=Depends(get_redis),
 ):
-    return await auth_ctrl.refresh_token(body, session, redis)
+    return await users_ctrl.refresh_token(body, session, redis)
 
 
 @router.post("/logout")
@@ -108,7 +74,7 @@ async def logout(
     session: AsyncSession = Depends(get_session),
     redis=Depends(get_redis),
 ):
-    return await auth_ctrl.logout(body.refresh_token, session, redis)
+    return await users_ctrl.logout(body.refresh_token, session, redis)
 
 
 # ── Token introspection ───────────────────────────────────────────────────────
@@ -116,12 +82,12 @@ async def logout(
 
 @router.get("/introspect", response_model=IntrospectResponse)
 async def introspect(authorization: str | None = Header(default=None)):
-    return await auth_ctrl.introspect(authorization)
+    return await users_ctrl.introspect(authorization)
 
 
 @router.get("/permissions/{user_id}", response_model=PermissionsResponse)
 async def permissions(user_id: str, session: AsyncSession = Depends(get_session)):
-    return await auth_ctrl.get_permissions(user_id, session)
+    return await users_ctrl.get_permissions(user_id, session)
 
 
 # ── Email & password ──────────────────────────────────────────────────────────
@@ -133,7 +99,7 @@ async def verify_email(
     session: AsyncSession = Depends(get_session),
     redis=Depends(get_redis),
 ):
-    return await auth_ctrl.verify_email(body, session, redis)
+    return await users_ctrl.verify_email(body, session, redis)
 
 
 @router.post("/password-reset/request")
@@ -143,7 +109,7 @@ async def password_reset_request(
     redis=Depends(get_redis),
     publisher: EventPublisher = Depends(_get_publisher),
 ):
-    return await auth_ctrl.password_reset_request(body, session, redis, publisher)
+    return await users_ctrl.password_reset_request(body, session, redis, publisher)
 
 
 @router.post("/password-reset/confirm")
@@ -153,56 +119,65 @@ async def password_reset_confirm(
     redis=Depends(get_redis),
     publisher: EventPublisher = Depends(_get_publisher),
 ):
-    return await auth_ctrl.password_reset_confirm(body, session, redis, publisher)
+    return await users_ctrl.password_reset_confirm(body, session, redis, publisher)
+
+
+# ── Self-service (/me) ────────────────────────────────────────────────────────
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(user: User = Depends(get_current_user)):
+    return users_ctrl.get_me(user)
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    body: UserSelfUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    return await users_ctrl.update_me(user, body, session)
+
+
+@router.delete("/me", status_code=200)
+async def delete_me(
+    session: AsyncSession = Depends(get_session),
+    redis=Depends(get_redis),
+    publisher: EventPublisher = Depends(_get_publisher),
+    user: User = Depends(get_current_user),
+):
+    return await users_ctrl.delete_user(user, session, redis, publisher)
 
 
 # ── MFA ───────────────────────────────────────────────────────────────────────
 
 
-@router.post("/mfa/enable", response_model=MFAEnableResponse)
+@router.post("/me/mfa/enable", response_model=MFAEnableResponse)
 async def mfa_enable(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(_get_current_user),
+    user: User = Depends(get_current_user),
 ):
     return await mfa_ctrl.mfa_enable(user, session)
 
 
-@router.post("/mfa/verify")
+@router.post("/me/mfa/verify")
 async def mfa_verify(
     body: MFAVerifyRequest,
     session: AsyncSession = Depends(get_session),
-    redis=Depends(get_redis),
     publisher: EventPublisher = Depends(_get_publisher),
-    user: User = Depends(_get_current_user),
+    user: User = Depends(get_current_user),
 ):
     return await mfa_ctrl.mfa_verify_and_activate(user, body, session, publisher)
 
 
-@router.post("/mfa/disable")
+@router.post("/me/mfa/disable")
 async def mfa_disable(
     body: MFADisableRequest,
     session: AsyncSession = Depends(get_session),
     publisher: EventPublisher = Depends(_get_publisher),
-    user: User = Depends(_get_current_user),
+    user: User = Depends(get_current_user),
 ):
     return await mfa_ctrl.mfa_disable(user, body, session, publisher)
-
-
-# ── Service (M2M) tokens ──────────────────────────────────────────────────────
-
-
-@router.post("/service/token", response_model=ServiceTokenResponse)
-async def service_token(
-    body: ServiceTokenRequest,
-    session: AsyncSession = Depends(get_session),
-    publisher: EventPublisher = Depends(_get_publisher),
-):
-    return await service_ctrl.issue_service_token(body, session, publisher)
-
-
-@router.post("/service/introspect", response_model=ServiceIntrospectResponse)
-async def service_introspect(body: ServiceIntrospectRequest):
-    return await service_ctrl.introspect_service_token(body)
 
 
 # ── OAuth2 ────────────────────────────────────────────────────────────────────
@@ -217,23 +192,45 @@ async def oauth_login(
     return await oauth_ctrl.oauth_login(provider, code, session)
 
 
-# ── Soft delete ───────────────────────────────────────────────────────────────
+# ── Admin CRUD ────────────────────────────────────────────────────────────────
 
 
-@router.delete("/users/me", status_code=200)
-async def delete_user(
+@router.get("", response_model=PagedResponse[UserResponse])
+async def list_users(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    include_deleted: bool = Query(False),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_permission("users:read")),
+):
+    return await users_ctrl.list_users(session, page, page_size, include_deleted)
+
+
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(
+    user_id: str,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_permission("users:read")),
+):
+    return await users_ctrl.get_user(user_id, session)
+
+
+@router.patch("/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: str,
+    body: UserUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_permission("users:write")),
+):
+    return await users_ctrl.update_user(user_id, body, session)
+
+
+@router.delete("/{user_id}", status_code=200)
+async def admin_delete_user(
+    user_id: str,
     session: AsyncSession = Depends(get_session),
     redis=Depends(get_redis),
     publisher: EventPublisher = Depends(_get_publisher),
-    user: User = Depends(_get_current_user),
+    _: User = Depends(require_permission("users:write")),
 ):
-    return await auth_ctrl.delete_user(user, session, redis, publisher)
-
-
-@router.delete("/service/clients/{service_id}", status_code=200)
-async def delete_service_client(
-    service_id: str,
-    session: AsyncSession = Depends(get_session),
-    publisher: EventPublisher = Depends(_get_publisher),
-):
-    return await service_ctrl.delete_service_client(service_id, session, publisher)
+    return await users_ctrl.admin_delete_user(user_id, session, redis, publisher)

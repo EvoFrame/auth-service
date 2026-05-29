@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.settings import settings
-from src.controllers.auth import _get_user_roles, _issue_access_token, _ph
+from src.controllers.users import _get_user_roles, _issue_access_token, _ph
 from src.libs.errors import AppError
 from src.models.user import User
 
