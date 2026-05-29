@@ -206,7 +206,7 @@ async def test_delete_user_requires_write_permission(client: AsyncClient, users_
 @pytest.mark.asyncio
 async def test_list_users(client: AsyncClient, users_admin, target_user):
     user_id, email = target_user
-    resp = await client.get(BASE, headers=_token(users_admin))
+    resp = await client.get(f"{BASE}?page_size=100", headers=_token(users_admin))
     assert resp.status_code == 200
     data = resp.json()
     assert "items" in data
@@ -359,14 +359,14 @@ async def test_deleted_user_excluded_from_list(client: AsyncClient, users_admin,
 
 @pytest.mark.asyncio
 async def test_deleted_user_visible_with_include_deleted(client: AsyncClient, users_admin, deletable_user):
-    resp = await client.get(f"{BASE}?include_deleted=true", headers=_token(users_admin))
+    resp = await client.get(f"{BASE}?include_deleted=true&page_size=100", headers=_token(users_admin))
     ids = [u["id"] for u in resp.json()["items"]]
     assert str(deletable_user) in ids
 
 
 @pytest.mark.asyncio
 async def test_deleted_user_has_deleted_at_set(client: AsyncClient, users_admin, deletable_user):
-    resp = await client.get(f"{BASE}?include_deleted=true", headers=_token(users_admin))
+    resp = await client.get(f"{BASE}?include_deleted=true&page_size=100", headers=_token(users_admin))
     deleted = next(u for u in resp.json()["items"] if u["id"] == str(deletable_user))
     assert deleted["deleted_at"] is not None
 

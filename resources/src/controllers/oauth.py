@@ -1,5 +1,6 @@
 """OAuth2 controller — social login via authlib (Google, GitHub)."""
 
+import secrets as _secrets
 import structlog
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 from sqlalchemy import select
@@ -25,9 +26,34 @@ _PROVIDERS = {
         "client_secret_key": "GITHUB_CLIENT_SECRET",
         "token_endpoint": "https://github.com/login/oauth/access_token",
         "userinfo_endpoint": "https://api.github.com/user",
+        "emails_endpoint": "https://api.github.com/user/emails",
         "email_field": "email",
     },
 }
+
+
+async def _resolve_email(client: AsyncOAuth2Client, provider: str, userinfo: dict) -> str:
+    """Return the verified primary email for the authenticated user.
+
+    GitHub users may have their email set to private, in which case the /user
+    endpoint returns null.  Fall back to /user/emails and pick the primary
+    verified address.
+    """
+    cfg = _PROVIDERS[provider]
+    email = userinfo.get(cfg["email_field"])
+
+    if not email and "emails_endpoint" in cfg:
+        emails_resp = await client.get(cfg["emails_endpoint"])
+        emails_resp.raise_for_status()
+        for entry in emails_resp.json():
+            if entry.get("primary") and entry.get("verified"):
+                email = entry["email"]
+                break
+
+    if not email:
+        raise AppError("OAUTH_NO_EMAIL", "Could not retrieve a verified email from OAuth provider.", status_code=400)
+
+    return email
 
 
 async def oauth_login(
@@ -58,14 +84,10 @@ async def oauth_login(
         userinfo_resp.raise_for_status()
         userinfo = userinfo_resp.json()
 
-    email = userinfo.get(cfg["email_field"])
-    if not email:
-        raise AppError("OAUTH_NO_EMAIL", "Could not retrieve email from OAuth provider.", status_code=400)
+        email = await _resolve_email(client, provider, userinfo)
 
     user = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if not user:
-        import secrets as _secrets
-
         user = User(
             email=email,
             password_hash=_ph.hash(_secrets.token_urlsafe(32)),
@@ -76,6 +98,9 @@ async def oauth_login(
         await session.commit()
         await session.refresh(user)
         logger.info("oauth_user_created", user_id=str(user.id), provider=provider)
+
+    if user.deleted_at is not None:
+        raise AppError("ACCOUNT_DELETED", "This account no longer exists.", status_code=403)
 
     if not user.is_active:
         raise AppError("ACCOUNT_DISABLED", "This account has been disabled.", status_code=403)
