@@ -371,6 +371,19 @@ async def password_reset_confirm(
 
     user.password_hash = _ph.hash(body.new_password)
     await redis.delete(key)
+
+    # Revoke all active refresh sessions — force re-login after password change
+    active_sessions_result = await session.execute(
+        select(RefreshSession).where(
+            RefreshSession.user_id == user.id,
+            RefreshSession.revoked_at.is_(None),
+        )
+    )
+    now = datetime.now(UTC)
+    for rs in active_sessions_result.scalars().all():
+        rs.revoked_at = now
+        await redis.delete(_REFRESH_KEY.format(jti=str(rs.id)))
+
     await session.commit()
 
     await publisher.publish("auth.user.password_reset", {"user_id": str(user.id), "email": user.email})
