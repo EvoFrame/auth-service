@@ -104,9 +104,7 @@ async def sc_readonly(db_engine, sc_admin) -> uuid.UUID:
         session.add(user)
         await session.flush()
 
-        read_perm_result = await session.execute(
-            select(Permission).where(Permission.name == "service_clients:read")
-        )
+        read_perm_result = await session.execute(select(Permission).where(Permission.name == "service_clients:read"))
         read_perm = read_perm_result.scalar_one()
 
         role = Role(name=f"sc-readonly-role-{user_id}")
@@ -133,9 +131,7 @@ async def test_create_service_client_requires_auth(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_create_service_client_requires_write_permission(client: AsyncClient, sc_readonly):
-    resp = await client.post(
-        BASE, json={"service_id": "should-fail"}, headers=_token(sc_readonly)
-    )
+    resp = await client.post(BASE, json={"service_id": "should-fail"}, headers=_token(sc_readonly))
     assert resp.status_code == 403
 
 

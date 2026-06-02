@@ -104,9 +104,7 @@ async def users_readonly(db_engine, users_admin) -> uuid.UUID:
         session.add(user)
         await session.flush()
 
-        read_perm = (
-            await session.execute(select(Permission).where(Permission.name == "users:read"))
-        ).scalar_one()
+        read_perm = (await session.execute(select(Permission).where(Permission.name == "users:read"))).scalar_one()
 
         role = Role(name=f"users-readonly-role-{user_id}")
         session.add(role)

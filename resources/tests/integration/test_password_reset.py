@@ -106,9 +106,7 @@ async def test_password_reset_new_password_works_on_login(client: AsyncClient, r
         json={"token": token, "new_password": "NewPass99!"},
     )
 
-    login_resp = await client.post(
-        f"{USERS_BASE}/login", json={"email": email, "password": "NewPass99!"}
-    )
+    login_resp = await client.post(f"{USERS_BASE}/login", json={"email": email, "password": "NewPass99!"})
     assert login_resp.status_code == 200
     assert login_resp.json()["access_token"]
 
@@ -127,9 +125,7 @@ async def test_password_reset_old_password_rejected_after_reset(client: AsyncCli
         json={"token": token, "new_password": "NewPass99!"},
     )
 
-    login_resp = await client.post(
-        f"{USERS_BASE}/login", json={"email": email, "password": "OldPass1!"}
-    )
+    login_resp = await client.post(f"{USERS_BASE}/login", json={"email": email, "password": "OldPass1!"})
     assert login_resp.status_code == 401
 
 
@@ -173,9 +169,7 @@ async def test_password_reset_revokes_refresh_sessions(client: AsyncClient, redi
     user_id = await _register_and_verify(client, redis_client, email, "OldPass1!")
 
     # Login to create a refresh session
-    login_resp = await client.post(
-        f"{USERS_BASE}/login", json={"email": email, "password": "OldPass1!"}
-    )
+    login_resp = await client.post(f"{USERS_BASE}/login", json={"email": email, "password": "OldPass1!"})
     refresh_token = login_resp.json()["refresh_token"]
 
     # Request and confirm password reset
@@ -187,7 +181,5 @@ async def test_password_reset_revokes_refresh_sessions(client: AsyncClient, redi
     )
 
     # Old refresh token should now be rejected
-    refresh_resp = await client.post(
-        f"{USERS_BASE}/refresh", json={"refresh_token": refresh_token}
-    )
+    refresh_resp = await client.post(f"{USERS_BASE}/refresh", json={"refresh_token": refresh_token})
     assert refresh_resp.status_code == 401

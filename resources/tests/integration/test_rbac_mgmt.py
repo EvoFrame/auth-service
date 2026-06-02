@@ -161,9 +161,7 @@ async def test_list_roles_requires_roles_read(client: AsyncClient, unprivileged_
 
 @pytest.mark.asyncio
 async def test_create_role_requires_roles_write(client: AsyncClient, readonly_user):
-    resp = await client.post(
-        f"{BASE}/roles", json={"name": "should-fail"}, headers=_auth(readonly_user)
-    )
+    resp = await client.post(f"{BASE}/roles", json={"name": "should-fail"}, headers=_auth(readonly_user))
     assert resp.status_code == 403
 
 
@@ -413,9 +411,7 @@ async def test_remove_role_from_user(client: AsyncClient, admin_user, unprivileg
     assert resp.status_code == 204
 
     # Verify removed
-    roles_resp = await client.get(
-        f"{BASE}/users/{unprivileged_user}/roles", headers=_auth(admin_user)
-    )
+    roles_resp = await client.get(f"{BASE}/users/{unprivileged_user}/roles", headers=_auth(admin_user))
     role_names = [r["name"] for r in roles_resp.json()["roles"]]
     assert "test-role" not in role_names
 

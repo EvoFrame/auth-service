@@ -243,8 +243,9 @@ async def test_oauth_existing_user_signs_in(client: AsyncClient, existing_oauth_
 async def test_oauth_github_private_email_fallback(client: AsyncClient, db_engine):
     """When GitHub /user returns null email, controller fetches /user/emails."""
     private_email = f"github-private-{uuid.uuid4()}@example.com"
-    with patch(_PATCH, return_value=_mock_github_client_private_email(private_email)), patch(
-        _SETTINGS_PATCH, _patched_settings()
+    with (
+        patch(_PATCH, return_value=_mock_github_client_private_email(private_email)),
+        patch(_SETTINGS_PATCH, _patched_settings()),
     ):
         resp = await client.post(f"{BASE}/github?code=private-email-code")
 
@@ -254,9 +255,7 @@ async def test_oauth_github_private_email_fallback(client: AsyncClient, db_engin
     async with AsyncSession(db_engine, expire_on_commit=False) as session:
         from sqlalchemy import select
 
-        user = (
-            await session.execute(select(User).where(User.email == private_email))
-        ).scalar_one_or_none()
+        user = (await session.execute(select(User).where(User.email == private_email))).scalar_one_or_none()
     assert user is not None
 
 
@@ -300,8 +299,9 @@ async def test_oauth_github_no_verified_email_returns_400(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_oauth_disabled_user_returns_403(client: AsyncClient, disabled_oauth_user):
-    with patch(_PATCH, return_value=_mock_oauth_client(email=disabled_oauth_user)), patch(
-        _SETTINGS_PATCH, _patched_settings()
+    with (
+        patch(_PATCH, return_value=_mock_oauth_client(email=disabled_oauth_user)),
+        patch(_SETTINGS_PATCH, _patched_settings()),
     ):
         resp = await client.post(f"{BASE}/google?code=disabled-code")
 
@@ -311,8 +311,9 @@ async def test_oauth_disabled_user_returns_403(client: AsyncClient, disabled_oau
 
 @pytest.mark.asyncio
 async def test_oauth_deleted_user_returns_403(client: AsyncClient, deleted_oauth_user):
-    with patch(_PATCH, return_value=_mock_oauth_client(email=deleted_oauth_user)), patch(
-        _SETTINGS_PATCH, _patched_settings()
+    with (
+        patch(_PATCH, return_value=_mock_oauth_client(email=deleted_oauth_user)),
+        patch(_SETTINGS_PATCH, _patched_settings()),
     ):
         resp = await client.post(f"{BASE}/google?code=deleted-code")
 
