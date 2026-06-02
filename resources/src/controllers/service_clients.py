@@ -164,9 +164,7 @@ async def list_service_clients(
         count_q = count_q.where(ServiceClient.deleted_at.is_(None))
 
     total = (await session.execute(count_q)).scalar_one()
-    clients = (
-        await session.execute(base_q.offset((page - 1) * page_size).limit(page_size))
-    ).scalars().all()
+    clients = (await session.execute(base_q.offset((page - 1) * page_size).limit(page_size))).scalars().all()
 
     return paginate([ServiceClientResponse.model_validate(c) for c in clients], total, page, page_size)
 

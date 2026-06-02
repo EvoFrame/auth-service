@@ -28,18 +28,14 @@ logger = structlog.get_logger()
 # ---------------------------------------------------------------------------
 
 
-async def list_roles(
-    session: AsyncSession, page: int = 1, page_size: int = 50
-) -> PagedResponse[RoleResponse]:
+async def list_roles(session: AsyncSession, page: int = 1, page_size: int = 50) -> PagedResponse[RoleResponse]:
     total = (await session.execute(select(func.count()).select_from(Role))).scalar_one()
     roles = (
-        await session.execute(
-            select(Role).order_by(Role.name).offset((page - 1) * page_size).limit(page_size)
-        )
-    ).scalars().all()
-    return paginate(
-        [RoleResponse.model_validate(r, from_attributes=True) for r in roles], total, page, page_size
+        (await session.execute(select(Role).order_by(Role.name).offset((page - 1) * page_size).limit(page_size)))
+        .scalars()
+        .all()
     )
+    return paginate([RoleResponse.model_validate(r, from_attributes=True) for r in roles], total, page, page_size)
 
 
 async def create_role(data: RoleCreateRequest, session: AsyncSession) -> RoleResponse:
@@ -66,9 +62,7 @@ async def get_role(role_id: uuid.UUID, session: AsyncSession) -> RoleDetailRespo
         .where(RolePermission.role_id == role_id)
         .order_by(Permission.name)
     )
-    permissions = [
-        PermissionResponse.model_validate(p, from_attributes=True) for p in result.scalars().all()
-    ]
+    permissions = [PermissionResponse.model_validate(p, from_attributes=True) for p in result.scalars().all()]
     return RoleDetailResponse(
         id=role.id,
         name=role.name,
@@ -78,9 +72,7 @@ async def get_role(role_id: uuid.UUID, session: AsyncSession) -> RoleDetailRespo
     )
 
 
-async def update_role(
-    role_id: uuid.UUID, data: RoleUpdateRequest, session: AsyncSession
-) -> RoleResponse:
+async def update_role(role_id: uuid.UUID, data: RoleUpdateRequest, session: AsyncSession) -> RoleResponse:
     role = await session.get(Role, role_id)
     if not role:
         raise AppError("NOT_FOUND", "Role not found.", status_code=404)
@@ -105,12 +97,8 @@ async def delete_role(role_id: uuid.UUID, session: AsyncSession) -> None:
     if not role:
         raise AppError("NOT_FOUND", "Role not found.", status_code=404)
 
-    await session.execute(
-        RolePermission.__table__.delete().where(RolePermission.role_id == role_id)
-    )
-    await session.execute(
-        UserRole.__table__.delete().where(UserRole.role_id == role_id)
-    )
+    await session.execute(RolePermission.__table__.delete().where(RolePermission.role_id == role_id))
+    await session.execute(UserRole.__table__.delete().where(UserRole.role_id == role_id))
     await session.delete(role)
     await session.commit()
     logger.info("rbac.role_deleted", role_id=str(role_id))
@@ -126,13 +114,14 @@ async def list_permissions(
 ) -> PagedResponse[PermissionResponse]:
     total = (await session.execute(select(func.count()).select_from(Permission))).scalar_one()
     perms = (
-        await session.execute(
-            select(Permission)
-            .order_by(Permission.name)
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+        (
+            await session.execute(
+                select(Permission).order_by(Permission.name).offset((page - 1) * page_size).limit(page_size)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return paginate(
         [PermissionResponse.model_validate(p, from_attributes=True) for p in perms],
         total,
@@ -141,9 +130,7 @@ async def list_permissions(
     )
 
 
-async def create_permission(
-    data: PermissionCreateRequest, session: AsyncSession
-) -> PermissionResponse:
+async def create_permission(data: PermissionCreateRequest, session: AsyncSession) -> PermissionResponse:
     existing = await session.execute(select(Permission).where(Permission.name == data.name))
     if existing.scalar_one_or_none():
         raise AppError("CONFLICT", f"Permission '{data.name}' already exists.", status_code=409)
@@ -161,9 +148,7 @@ async def delete_permission(permission_id: uuid.UUID, session: AsyncSession) -> 
     if not perm:
         raise AppError("NOT_FOUND", "Permission not found.", status_code=404)
 
-    await session.execute(
-        RolePermission.__table__.delete().where(RolePermission.permission_id == permission_id)
-    )
+    await session.execute(RolePermission.__table__.delete().where(RolePermission.permission_id == permission_id))
     await session.delete(perm)
     await session.commit()
     logger.info("rbac.permission_deleted", permission_id=str(permission_id))
@@ -194,9 +179,7 @@ async def assign_permission_to_role(
     return await get_role(role_id, session)
 
 
-async def remove_permission_from_role(
-    role_id: uuid.UUID, permission_id: uuid.UUID, session: AsyncSession
-) -> None:
+async def remove_permission_from_role(role_id: uuid.UUID, permission_id: uuid.UUID, session: AsyncSession) -> None:
     rp = await session.get(RolePermission, {"role_id": role_id, "permission_id": permission_id})
     if not rp:
         raise AppError("NOT_FOUND", "Assignment not found.", status_code=404)
@@ -211,9 +194,7 @@ async def remove_permission_from_role(
 # ---------------------------------------------------------------------------
 
 
-async def assign_role_to_user(
-    user_id: uuid.UUID, role_id: uuid.UUID, session: AsyncSession
-) -> UserRolesResponse:
+async def assign_role_to_user(user_id: uuid.UUID, role_id: uuid.UUID, session: AsyncSession) -> UserRolesResponse:
     user = await session.get(User, user_id)
     if not user or user.deleted_at is not None:
         raise AppError("NOT_FOUND", "User not found.", status_code=404)
@@ -231,9 +212,7 @@ async def assign_role_to_user(
     return await get_user_roles(user_id, session)
 
 
-async def remove_role_from_user(
-    user_id: uuid.UUID, role_id: uuid.UUID, session: AsyncSession
-) -> None:
+async def remove_role_from_user(user_id: uuid.UUID, role_id: uuid.UUID, session: AsyncSession) -> None:
     ur = await session.get(UserRole, {"user_id": user_id, "role_id": role_id})
     if not ur:
         raise AppError("NOT_FOUND", "Assignment not found.", status_code=404)
@@ -249,10 +228,7 @@ async def get_user_roles(user_id: uuid.UUID, session: AsyncSession) -> UserRoles
         raise AppError("NOT_FOUND", "User not found.", status_code=404)
 
     roles_result = await session.execute(
-        select(Role)
-        .join(UserRole, Role.id == UserRole.role_id)
-        .where(UserRole.user_id == user_id)
-        .order_by(Role.name)
+        select(Role).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == user_id).order_by(Role.name)
     )
     roles = roles_result.scalars().all()
 

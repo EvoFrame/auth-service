@@ -1,6 +1,7 @@
 """OAuth2 controller — social login via authlib (Google, GitHub)."""
 
 import secrets as _secrets
+
 import structlog
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 from sqlalchemy import select
@@ -32,7 +33,11 @@ _PROVIDERS = {
 }
 
 
-async def _resolve_email(client: AsyncOAuth2Client, provider: str, userinfo: dict) -> str:
+async def _resolve_email(
+    client: AsyncOAuth2Client,
+    provider: str,
+    userinfo: dict,
+) -> str:
     """Return the verified primary email for the authenticated user.
 
     GitHub users may have their email set to private, in which case the /user
@@ -51,7 +56,11 @@ async def _resolve_email(client: AsyncOAuth2Client, provider: str, userinfo: dic
                 break
 
     if not email:
-        raise AppError("OAUTH_NO_EMAIL", "Could not retrieve a verified email from OAuth provider.", status_code=400)
+        raise AppError(
+            "OAUTH_NO_EMAIL",
+            "Could not retrieve a verified email from OAuth provider.",
+            status_code=400,
+        )
 
     return email
 
@@ -63,13 +72,21 @@ async def oauth_login(
 ) -> dict:
     cfg = _PROVIDERS.get(provider)
     if not cfg:
-        raise AppError("UNSUPPORTED_PROVIDER", f"OAuth provider '{provider}' is not supported.", status_code=400)
+        raise AppError(
+            "UNSUPPORTED_PROVIDER",
+            f"OAuth provider '{provider}' is not supported.",
+            status_code=400,
+        )
 
     client_id = getattr(settings, cfg["client_id_key"])
     client_secret = getattr(settings, cfg["client_secret_key"])
 
     if not client_id or not client_secret:
-        raise AppError("PROVIDER_NOT_CONFIGURED", f"OAuth provider '{provider}' is not configured.", status_code=503)
+        raise AppError(
+            "PROVIDER_NOT_CONFIGURED",
+            f"OAuth provider '{provider}' is not configured.",
+            status_code=503,
+        )
 
     redirect_uri = f"{settings.OAUTH_REDIRECT_BASE_URL}/auth/oauth/{provider}/callback"
 
@@ -108,4 +125,8 @@ async def oauth_login(
     roles = await _get_user_roles(user.id, session)
     access_token, _ = _issue_access_token(user, roles)
 
-    return {"access_token": access_token, "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_TTL}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_TTL,
+    }

@@ -400,9 +400,7 @@ def get_me(user: User) -> UserResponse:
 async def update_me(user: User, body: UserSelfUpdateRequest, session: AsyncSession) -> UserResponse:
     if body.email is not None:
         conflict = (
-            await session.execute(
-                select(User).where(User.email == body.email, User.id != user.id)
-            )
+            await session.execute(select(User).where(User.email == body.email, User.id != user.id))
         ).scalar_one_or_none()
         if conflict:
             raise AppError("EMAIL_TAKEN", "Email is already registered.", status_code=409)
@@ -410,14 +408,14 @@ async def update_me(user: User, body: UserSelfUpdateRequest, session: AsyncSessi
 
     if body.backup_email is not None:
         conflict = (
-            await session.execute(
-                select(User).where(User.backup_email == body.backup_email, User.id != user.id)
-            )
+            await session.execute(select(User).where(User.backup_email == body.backup_email, User.id != user.id))
         ).scalar_one_or_none()
         if conflict:
             raise AppError("BACKUP_EMAIL_TAKEN", "Backup email is already in use.", status_code=409)
         if body.backup_email == user.email:
-            raise AppError("BACKUP_EMAIL_SAME_AS_PRIMARY", "Backup email must differ from primary email.", status_code=409)
+            raise AppError(
+                "BACKUP_EMAIL_SAME_AS_PRIMARY", "Backup email must differ from primary email.", status_code=409
+            )
         user.backup_email = body.backup_email
         user.backup_email_verified = False  # reset when address changes
 
@@ -466,9 +464,7 @@ async def list_users(
         count_q = count_q.where(User.deleted_at.is_(None))
 
     total = (await session.execute(count_q)).scalar_one()
-    users = (
-        await session.execute(base_q.offset((page - 1) * page_size).limit(page_size))
-    ).scalars().all()
+    users = (await session.execute(base_q.offset((page - 1) * page_size).limit(page_size))).scalars().all()
 
     return paginate([UserResponse.model_validate(u) for u in users], total, page, page_size)
 
@@ -489,9 +485,7 @@ async def update_user(user_id: str, body: UserUpdateRequest, session: AsyncSessi
 
     if body.email is not None:
         conflict = (
-            await session.execute(
-                select(User).where(User.email == body.email, User.id != user.id)
-            )
+            await session.execute(select(User).where(User.email == body.email, User.id != user.id))
         ).scalar_one_or_none()
         if conflict:
             raise AppError("EMAIL_TAKEN", "Email is already registered.", status_code=409)
@@ -499,14 +493,14 @@ async def update_user(user_id: str, body: UserUpdateRequest, session: AsyncSessi
 
     if body.backup_email is not None:
         conflict = (
-            await session.execute(
-                select(User).where(User.backup_email == body.backup_email, User.id != user.id)
-            )
+            await session.execute(select(User).where(User.backup_email == body.backup_email, User.id != user.id))
         ).scalar_one_or_none()
         if conflict:
             raise AppError("BACKUP_EMAIL_TAKEN", "Backup email is already in use.", status_code=409)
         if body.backup_email == user.email:
-            raise AppError("BACKUP_EMAIL_SAME_AS_PRIMARY", "Backup email must differ from primary email.", status_code=409)
+            raise AppError(
+                "BACKUP_EMAIL_SAME_AS_PRIMARY", "Backup email must differ from primary email.", status_code=409
+            )
         user.backup_email = body.backup_email
         if body.backup_email_verified is None:
             user.backup_email_verified = False  # reset when address changes unless explicitly set
