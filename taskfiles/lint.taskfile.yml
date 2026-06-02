@@ -13,9 +13,11 @@ tasks:
     cmd: uv run ruff check resources/src resources/tests
 
   format:
-    desc: Run ruff formatter
+    desc: Run ruff formatter (imports + style)
     deps: [_guard]
-    cmd: uv run ruff format resources/src resources/tests
+    cmds:
+      - uv run ruff check --select I --fix resources/src resources/tests
+      - uv run ruff format resources/src resources/tests
 
   fix:
     desc: Auto-fix lint issues in place
