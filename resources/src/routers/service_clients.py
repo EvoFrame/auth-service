@@ -21,8 +21,6 @@ from src.schemas.service_clients import (
     ServiceTokenResponse,
 )
 
-router = APIRouter(prefix="/service-clients", tags=["service-clients"])
-
 
 async def _get_publisher(redis=Depends(get_redis)) -> EventPublisher:
     return EventPublisher(redis)
@@ -30,8 +28,10 @@ async def _get_publisher(redis=Depends(get_redis)) -> EventPublisher:
 
 # ── Token flows (public — authenticated by service secret / JWT) ──────────────
 
+_token_router = APIRouter(tags=["Service Tokens"])
 
-@router.post("/token", response_model=ServiceTokenResponse)
+
+@_token_router.post("/token", response_model=ServiceTokenResponse)
 async def service_token(
     body: ServiceTokenRequest,
     session: AsyncSession = Depends(get_session),
@@ -40,15 +40,17 @@ async def service_token(
     return await sc_ctrl.issue_service_token(body, session, publisher)
 
 
-@router.post("/introspect", response_model=ServiceIntrospectResponse)
+@_token_router.post("/introspect", response_model=ServiceIntrospectResponse)
 async def service_introspect(body: ServiceIntrospectRequest):
     return await sc_ctrl.introspect_service_token(body)
 
 
 # ── Admin CRUD ────────────────────────────────────────────────────────────────
 
+_admin_router = APIRouter(tags=["Admin — Service Clients"])
 
-@router.post("", response_model=ServiceClientCreateResponse, status_code=201)
+
+@_admin_router.post("", response_model=ServiceClientCreateResponse, status_code=201)
 async def create_service_client(
     body: ServiceClientCreateRequest,
     session: AsyncSession = Depends(get_session),
@@ -58,7 +60,7 @@ async def create_service_client(
     return await sc_ctrl.create_service_client(body, session, publisher)
 
 
-@router.get("", response_model=PagedResponse[ServiceClientResponse])
+@_admin_router.get("", response_model=PagedResponse[ServiceClientResponse])
 async def list_service_clients(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -69,7 +71,7 @@ async def list_service_clients(
     return await sc_ctrl.list_service_clients(session, page, page_size, include_deleted)
 
 
-@router.get("/{service_id}", response_model=ServiceClientResponse)
+@_admin_router.get("/{service_id}", response_model=ServiceClientResponse)
 async def get_service_client(
     service_id: str,
     session: AsyncSession = Depends(get_session),
@@ -78,7 +80,7 @@ async def get_service_client(
     return await sc_ctrl.get_service_client(service_id, session)
 
 
-@router.patch("/{service_id}", response_model=ServiceClientResponse)
+@_admin_router.patch("/{service_id}", response_model=ServiceClientResponse)
 async def update_service_client(
     service_id: str,
     body: ServiceClientUpdateRequest,
@@ -88,7 +90,7 @@ async def update_service_client(
     return await sc_ctrl.update_service_client(service_id, body, session)
 
 
-@router.delete("/{service_id}", status_code=200)
+@_admin_router.delete("/{service_id}", status_code=200)
 async def delete_service_client(
     service_id: str,
     session: AsyncSession = Depends(get_session),
@@ -96,3 +98,10 @@ async def delete_service_client(
     _: User = Depends(require_permission("service_clients:write")),
 ):
     return await sc_ctrl.delete_service_client(service_id, session, publisher)
+
+
+# ── Main service-clients router ───────────────────────────────────────────────
+
+router = APIRouter(prefix="/service-clients")
+router.include_router(_token_router)
+router.include_router(_admin_router)
