@@ -5,7 +5,7 @@ from sqlalchemy import text
 from src.db.session import AsyncSessionLocal
 from src.redis.client import get_redis
 
-health_router = APIRouter(tags=["health"])
+health_router = APIRouter(tags=["Health"])
 
 
 @health_router.get("/health/live")
