@@ -28,7 +28,7 @@ async def _get_publisher(redis=Depends(get_redis)) -> EventPublisher:
 
 # ── Token flows (public — authenticated by service secret / JWT) ──────────────
 
-_token_router = APIRouter(tags=["Service Tokens"])
+_token_router = APIRouter(prefix="/service-clients", tags=["Service Tokens"])
 
 
 @_token_router.post("/token", response_model=ServiceTokenResponse)
@@ -47,7 +47,7 @@ async def service_introspect(body: ServiceIntrospectRequest):
 
 # ── Admin CRUD ────────────────────────────────────────────────────────────────
 
-_admin_router = APIRouter(tags=["Admin — Service Clients"])
+_admin_router = APIRouter(prefix="/service-clients", tags=["Admin — Service Clients"])
 
 
 @_admin_router.post("", response_model=ServiceClientCreateResponse, status_code=201)
@@ -102,6 +102,6 @@ async def delete_service_client(
 
 # ── Main service-clients router ───────────────────────────────────────────────
 
-router = APIRouter(prefix="/service-clients")
+router = APIRouter()
 router.include_router(_token_router)
 router.include_router(_admin_router)

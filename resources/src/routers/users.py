@@ -36,7 +36,7 @@ async def _get_publisher(redis=Depends(get_redis)) -> EventPublisher:
 
 # ── Registration & login ──────────────────────────────────────────────────────
 
-_auth_router = APIRouter(tags=["Authentication"])
+_auth_router = APIRouter(prefix="/users", tags=["Authentication"])
 
 
 @_auth_router.post("/register", status_code=201)
@@ -118,7 +118,7 @@ async def password_reset_confirm(
 
 # ── Self-service (/me) ────────────────────────────────────────────────────────
 
-_account_router = APIRouter(prefix="/me", tags=["Account"])
+_account_router = APIRouter(prefix="/users/me", tags=["Account"])
 
 
 @_account_router.get("", response_model=UserResponse)
@@ -147,7 +147,7 @@ async def delete_me(
 
 # ── MFA ───────────────────────────────────────────────────────────────────────
 
-_mfa_router = APIRouter(prefix="/me/mfa", tags=["MFA"])
+_mfa_router = APIRouter(prefix="/users/me/mfa", tags=["MFA"])
 
 
 @_mfa_router.post("/enable", response_model=MFAEnableResponse)
@@ -180,7 +180,7 @@ async def mfa_disable(
 
 # ── OAuth2 ────────────────────────────────────────────────────────────────────
 
-_oauth_router = APIRouter(prefix="/oauth", tags=["OAuth"])
+_oauth_router = APIRouter(prefix="/users/oauth", tags=["OAuth"])
 
 
 @_oauth_router.post("/{provider}")
@@ -194,7 +194,7 @@ async def oauth_login(
 
 # ── Admin CRUD ────────────────────────────────────────────────────────────────
 
-_admin_users_router = APIRouter(tags=["Admin — Users"])
+_admin_users_router = APIRouter(prefix="/users", tags=["Admin — Users"])
 
 
 @_admin_users_router.get("", response_model=PagedResponse[UserResponse])
@@ -240,7 +240,7 @@ async def admin_delete_user(
 
 # ── Main users router ─────────────────────────────────────────────────────────
 
-router = APIRouter(prefix="/users")
+router = APIRouter()
 router.include_router(_auth_router)
 router.include_router(_account_router)
 router.include_router(_mfa_router)
