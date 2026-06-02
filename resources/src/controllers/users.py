@@ -55,7 +55,15 @@ _RESET_TTL = 3600  # 1 h
 
 
 def _issue_access_token(user: User, roles: list[str]) -> tuple[str, str]:
-    """Return (encoded_jwt, jti)."""
+    """Create and sign a short-lived RS256 access token for a user.
+
+    Args:
+        user: The authenticated user model instance.
+        roles: List of role names to embed in the token payload.
+
+    Returns:
+        A tuple of (encoded_jwt, jti) where jti is the unique token ID.
+    """
     jti = str(uuid.uuid4())
     now = datetime.now(UTC)
     payload = {
@@ -73,6 +81,15 @@ def _issue_access_token(user: User, roles: list[str]) -> tuple[str, str]:
 
 
 async def _get_user_roles(user_id: uuid.UUID, session: AsyncSession) -> list[str]:
+    """Fetch the role names assigned to a user.
+
+    Args:
+        user_id: UUID of the user.
+        session: Active database session.
+
+    Returns:
+        List of role name strings assigned to the user.
+    """
     result = await session.execute(
         select(Role).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == user_id)
     )
@@ -80,6 +97,15 @@ async def _get_user_roles(user_id: uuid.UUID, session: AsyncSession) -> list[str
 
 
 async def _verify_totp(user: User, code: str) -> None:
+    """Decrypt the stored TOTP secret and verify the provided code.
+
+    Args:
+        user: The user whose TOTP secret to verify against.
+        code: The 6-digit TOTP code submitted by the user.
+
+    Raises:
+        AppError: If MFA is not configured or the TOTP code is invalid.
+    """
     import pyotp
     from cryptography.fernet import Fernet
 
@@ -102,6 +128,20 @@ async def register(
     redis,
     publisher: EventPublisher,
 ) -> dict:
+    """Register a new user and dispatch an email verification event.
+
+    Args:
+        body: Registration payload containing email and password.
+        session: Active database session.
+        redis: Redis client used to store the email verification token.
+        publisher: Event publisher for dispatching domain events.
+
+    Returns:
+        A dict with the new user's ID and a confirmation message.
+
+    Raises:
+        AppError: If the email address is already registered (409).
+    """
     existing = (await session.execute(select(User).where(User.email == body.email))).scalar_one_or_none()
     if existing:
         raise AppError("EMAIL_TAKEN", "Email is already registered.", status_code=409)
@@ -129,6 +169,20 @@ async def login(
     redis,
     request: Request,
 ) -> TokenResponse:
+    """Authenticate a user and issue access + refresh tokens.
+
+    Args:
+        body: Login payload with email, password, and optional TOTP code.
+        session: Active database session.
+        redis: Redis client used to track the refresh session.
+        request: The incoming HTTP request (used for IP and user-agent logging).
+
+    Returns:
+        A TokenResponse containing access token, refresh token, and TTL.
+
+    Raises:
+        AppError: For invalid credentials, disabled/unverified accounts, or missing MFA code.
+    """
     user = (await session.execute(select(User).where(User.email == body.email))).scalar_one_or_none()
     if not user or user.deleted_at is not None:
         raise AppError("INVALID_CREDENTIALS", "Invalid email or password.", status_code=401)
@@ -186,6 +240,21 @@ async def refresh_token(
     session: AsyncSession,
     redis,
 ) -> TokenResponse:
+    """Rotate a refresh token and issue a new access token.
+
+    The old refresh session is revoked and a new one is created (token rotation).
+
+    Args:
+        body: Request body containing the composite refresh token string.
+        session: Active database session.
+        redis: Redis client for refresh session tracking.
+
+    Returns:
+        A TokenResponse with a new access token and rotated refresh token.
+
+    Raises:
+        AppError: For invalid, expired, or revoked refresh tokens, or disabled accounts.
+    """
     try:
         session_id, raw_token = body.refresh_token.split(":", 1)
     except ValueError:
@@ -244,6 +313,19 @@ async def refresh_token(
 
 
 async def logout(refresh_token_str: str, session: AsyncSession, redis) -> dict:
+    """Revoke the given refresh session to log out the user.
+
+    Silently succeeds even if the token is already invalid or not found,
+    to prevent information leakage.
+
+    Args:
+        refresh_token_str: The composite refresh token string.
+        session: Active database session.
+        redis: Redis client for cache invalidation.
+
+    Returns:
+        A dict with a logout confirmation message.
+    """
     try:
         session_id, raw_token = refresh_token_str.split(":", 1)
         session_uuid = uuid.UUID(session_id)
@@ -268,6 +350,17 @@ async def logout(refresh_token_str: str, session: AsyncSession, redis) -> dict:
 
 
 async def introspect(authorization: str | None) -> IntrospectResponse:
+    """Decode and validate a user bearer token, returning its claims.
+
+    Args:
+        authorization: The raw Authorization header value (e.g. "Bearer <token>").
+
+    Returns:
+        An IntrospectResponse with the token's decoded claims.
+
+    Raises:
+        AppError: If the header is missing, the token is expired, or the token is invalid.
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise AppError("MISSING_TOKEN", "Authorization header missing.", status_code=401)
 
@@ -298,6 +391,15 @@ async def introspect(authorization: str | None) -> IntrospectResponse:
 
 
 async def get_permissions(user_id: str, session: AsyncSession) -> PermissionsResponse:
+    """Retrieve the roles and permissions for a given user.
+
+    Args:
+        user_id: String representation of the user's UUID.
+        session: Active database session.
+
+    Returns:
+        A PermissionsResponse containing the user's roles and permissions.
+    """
     uid = uuid.UUID(user_id)
     roles_result = await session.execute(
         select(Role).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == uid)
@@ -318,6 +420,19 @@ async def get_permissions(user_id: str, session: AsyncSession) -> PermissionsRes
 
 
 async def verify_email(body: VerifyEmailRequest, session: AsyncSession, redis) -> dict:
+    """Mark a user's email as verified using a single-use token.
+
+    Args:
+        body: Request body containing the verification token.
+        session: Active database session.
+        redis: Redis client holding the pending verification token.
+
+    Returns:
+        A dict with a success message.
+
+    Raises:
+        AppError: If the token is invalid or expired, or the user is not found.
+    """
     key = _VERIFY_KEY.format(token=body.token)
     user_id_str = await redis.get(key)
     if not user_id_str:
@@ -339,6 +454,19 @@ async def password_reset_request(
     redis,
     publisher: EventPublisher,
 ) -> dict:
+    """Generate a password reset token and dispatch a reset email event.
+
+    Always returns a success response to prevent user enumeration.
+
+    Args:
+        body: Request body containing the user's email address.
+        session: Active database session.
+        redis: Redis client used to store the short-lived reset token.
+        publisher: Event publisher for dispatching the reset email event.
+
+    Returns:
+        A dict with an ambiguous success message.
+    """
     user = (await session.execute(select(User).where(User.email == body.email))).scalar_one_or_none()
     # Always return success to avoid user enumeration
     if not user:
@@ -360,6 +488,20 @@ async def password_reset_confirm(
     redis,
     publisher: EventPublisher,
 ) -> dict:
+    """Apply a new password using a valid reset token and revoke all sessions.
+
+    Args:
+        body: Request body with the reset token and new password.
+        session: Active database session.
+        redis: Redis client for token validation and session cache invalidation.
+        publisher: Event publisher for dispatching the password-reset event.
+
+    Returns:
+        A dict with a success message.
+
+    Raises:
+        AppError: If the reset token is invalid, expired, or the user is not found.
+    """
     key = _RESET_KEY.format(token=body.token)
     user_id_str = await redis.get(key)
     if not user_id_str:
@@ -394,10 +536,31 @@ async def password_reset_confirm(
 
 
 def get_me(user: User) -> UserResponse:
+    """Serialize the current authenticated user into a response model.
+
+    Args:
+        user: The authenticated user model instance.
+
+    Returns:
+        A UserResponse with the user's public fields.
+    """
     return UserResponse.model_validate(user)
 
 
 async def update_me(user: User, body: UserSelfUpdateRequest, session: AsyncSession) -> UserResponse:
+    """Apply self-service profile updates for the authenticated user.
+
+    Args:
+        user: The authenticated user to update.
+        body: Fields to update (email and/or backup_email).
+        session: Active database session.
+
+    Returns:
+        The updated UserResponse.
+
+    Raises:
+        AppError: If the new email is already taken or backup email equals primary.
+    """
     if body.email is not None:
         conflict = (
             await session.execute(select(User).where(User.email == body.email, User.id != user.id))
@@ -425,6 +588,20 @@ async def update_me(user: User, body: UserSelfUpdateRequest, session: AsyncSessi
 
 
 async def delete_user(user: User, session: AsyncSession, redis, publisher: EventPublisher) -> dict:
+    """Soft-delete a user account and revoke all active refresh sessions.
+
+    Args:
+        user: The user model instance to delete.
+        session: Active database session.
+        redis: Redis client for refresh session cache invalidation.
+        publisher: Event publisher for dispatching the deletion event.
+
+    Returns:
+        A dict with a success message.
+
+    Raises:
+        AppError: If the user is already deleted (409).
+    """
     if user.deleted_at is not None:
         raise AppError("USER_ALREADY_DELETED", "User account is already deleted.", status_code=409)
 
@@ -457,6 +634,17 @@ async def list_users(
     page_size: int,
     include_deleted: bool = False,
 ) -> PagedResponse[UserResponse]:
+    """Return a paginated list of users.
+
+    Args:
+        session: Active database session.
+        page: 1-based page number.
+        page_size: Number of items per page.
+        include_deleted: If True, soft-deleted users are included.
+
+    Returns:
+        A PagedResponse containing the current page of UserResponse items.
+    """
     base_q = select(User)
     count_q = select(func.count()).select_from(User)
     if not include_deleted:
@@ -470,6 +658,18 @@ async def list_users(
 
 
 async def get_user(user_id: str, session: AsyncSession) -> UserResponse:
+    """Retrieve a single user by ID.
+
+    Args:
+        user_id: String representation of the user's UUID.
+        session: Active database session.
+
+    Returns:
+        The corresponding UserResponse.
+
+    Raises:
+        AppError: If no user exists with the given ID (404).
+    """
     user = await session.get(User, uuid.UUID(user_id))
     if not user:
         raise AppError("USER_NOT_FOUND", "User not found.", status_code=404)
@@ -477,6 +677,19 @@ async def get_user(user_id: str, session: AsyncSession) -> UserResponse:
 
 
 async def update_user(user_id: str, body: UserUpdateRequest, session: AsyncSession) -> UserResponse:
+    """Admin update of a user's profile fields.
+
+    Args:
+        user_id: String representation of the user's UUID.
+        body: Fields to update (email, backup_email, is_active, is_verified, etc.).
+        session: Active database session.
+
+    Returns:
+        The updated UserResponse.
+
+    Raises:
+        AppError: If the user is not found, already deleted, or the email is taken.
+    """
     user = await session.get(User, uuid.UUID(user_id))
     if not user:
         raise AppError("USER_NOT_FOUND", "User not found.", status_code=404)
@@ -523,6 +736,20 @@ async def admin_delete_user(
     redis,
     publisher: EventPublisher,
 ) -> dict:
+    """Admin soft-delete of a user account by ID.
+
+    Args:
+        user_id: String representation of the user's UUID.
+        session: Active database session.
+        redis: Redis client for session cache invalidation.
+        publisher: Event publisher for dispatching the deletion event.
+
+    Returns:
+        A dict with a success message.
+
+    Raises:
+        AppError: If the user is not found (404) or already deleted (409).
+    """
     user = await session.get(User, uuid.UUID(user_id))
     if not user:
         raise AppError("USER_NOT_FOUND", "User not found.", status_code=404)

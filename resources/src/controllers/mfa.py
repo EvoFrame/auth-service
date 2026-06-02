@@ -15,12 +15,32 @@ logger = structlog.get_logger()
 
 
 def _fernet() -> Fernet:
+    """Return a configured Fernet instance using the TOTP encryption key.
+
+    Returns:
+        A Fernet instance ready for encrypt/decrypt operations.
+
+    Raises:
+        AppError: If TOTP_ENCRYPTION_KEY is not set in settings (500).
+    """
     if not settings.TOTP_ENCRYPTION_KEY:
         raise AppError("MFA_NOT_AVAILABLE", "TOTP encryption key not configured.", status_code=500)
     return Fernet(settings.TOTP_ENCRYPTION_KEY.encode())
 
 
 async def mfa_enable(user: User, session: AsyncSession) -> MFAEnableResponse:
+    """Generate a new TOTP secret and store it encrypted, awaiting verification.
+
+    Args:
+        user: The authenticated user enabling MFA.
+        session: Active database session.
+
+    Returns:
+        An MFAEnableResponse with the provisioning URI and raw secret.
+
+    Raises:
+        AppError: If MFA is already enabled for this user (409).
+    """
     if user.mfa_enabled:
         raise AppError("MFA_ALREADY_ENABLED", "MFA is already enabled.", status_code=409)
 
@@ -40,7 +60,20 @@ async def mfa_verify_and_activate(
     session: AsyncSession,
     publisher: EventPublisher,
 ) -> dict:
-    """Verify the TOTP code and mark MFA as fully enabled."""
+    """Verify the TOTP code and mark MFA as fully enabled.
+
+    Args:
+        user: The authenticated user completing MFA setup.
+        body: Request body containing the 6-digit TOTP verification code.
+        session: Active database session.
+        publisher: Event publisher for dispatching the MFA-changed event.
+
+    Returns:
+        A dict with a success message.
+
+    Raises:
+        AppError: If MFA is already enabled, not configured, or the code is invalid.
+    """
     if user.mfa_enabled:
         raise AppError("MFA_ALREADY_ENABLED", "MFA is already enabled.", status_code=409)
 
@@ -63,6 +96,20 @@ async def mfa_disable(
     session: AsyncSession,
     publisher: EventPublisher,
 ) -> dict:
+    """Disable TOTP MFA for the user after verifying the current code.
+
+    Args:
+        user: The authenticated user disabling MFA.
+        body: Request body containing the current 6-digit TOTP code.
+        session: Active database session.
+        publisher: Event publisher for dispatching the MFA-changed event.
+
+    Returns:
+        A dict with a success message.
+
+    Raises:
+        AppError: If MFA is not enabled or the TOTP code is invalid.
+    """
     if not user.mfa_enabled:
         raise AppError("MFA_NOT_ENABLED", "MFA is not enabled.", status_code=400)
 
@@ -78,6 +125,15 @@ async def mfa_disable(
 
 
 def _check_totp(user: User, code: str) -> None:
+    """Validate a TOTP code against the user's stored encrypted secret.
+
+    Args:
+        user: The user whose TOTP secret to verify against.
+        code: The 6-digit TOTP code to validate.
+
+    Raises:
+        AppError: If MFA is not configured or the TOTP code is invalid.
+    """
     if not user.totp_secret_enc:
         raise AppError("MFA_NOT_CONFIGURED", "MFA is not configured.", status_code=400)
 

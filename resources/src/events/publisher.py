@@ -6,6 +6,8 @@ from src.config.settings import settings
 
 
 class EventPublisher:
+    """Publishes domain events to Redis Streams."""
+
     def __init__(self, redis: Redis):
         self._redis = redis
 
@@ -18,6 +20,18 @@ class EventPublisher:
         issuer_service: str | None = None,
         issued_to_service: str | None = None,
     ) -> None:
+        """Append an event envelope to a Redis Stream.
+
+        Wraps the payload with standard metadata (source_service, timestamp)
+        before writing to the stream.
+
+        Args:
+            stream: The Redis Stream key to publish to.
+            payload: Arbitrary event data as string key-value pairs.
+            maxlen: Maximum stream length; older entries are trimmed (default: 50,000).
+            issuer_service: Optional service that issued a token (for auth events).
+            issued_to_service: Optional service that received a token (for auth events).
+        """
         envelope: dict[str, str] = {
             "source_service": settings.SERVICE_ID,
             "timestamp": datetime.now(UTC).isoformat(),

@@ -15,6 +15,7 @@ _scheduler: AsyncIOScheduler | None = None
 
 
 async def _cleanup_sessions() -> None:
+    """Delete all expired and revoked refresh sessions from the database."""
     now = datetime.now(UTC)
     async with AsyncSessionLocal() as session:
         result = await session.execute(
@@ -25,6 +26,13 @@ async def _cleanup_sessions() -> None:
 
 
 def start_scheduler() -> AsyncIOScheduler:
+    """Start the background scheduler with the session cleanup job.
+
+    Schedules _cleanup_sessions to run daily at 03:00 UTC.
+
+    Returns:
+        The started AsyncIOScheduler instance.
+    """
     global _scheduler
     _scheduler = AsyncIOScheduler()
     _scheduler.add_job(_cleanup_sessions, "cron", hour=3, minute=0, id="session_cleanup")
@@ -34,5 +42,6 @@ def start_scheduler() -> AsyncIOScheduler:
 
 
 def stop_scheduler() -> None:
+    """Shut down the background scheduler if it is currently running."""
     if _scheduler and _scheduler.running:
         _scheduler.shutdown(wait=False)

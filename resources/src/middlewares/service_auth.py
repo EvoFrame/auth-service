@@ -25,6 +25,18 @@ class ServiceAuthMiddleware(BaseHTTPMiddleware):
     )
 
     async def dispatch(self, request: Request, call_next):
+        """Validate the X-Service-Token header on non-exempt routes.
+
+        Exempt paths (health, docs, metrics, token endpoint) bypass validation.
+        In debug mode with SKIP_SERVICE_AUTH=True, validation is also bypassed.
+
+        Args:
+            request: The incoming HTTP request.
+            call_next: ASGI callable to forward the request to the next handler.
+
+        Returns:
+            The response from the next handler, or a 403 JSON error response.
+        """
         if any(request.url.path.startswith(p) for p in self._EXEMPT_PREFIXES):
             return await call_next(request)
 
@@ -66,6 +78,15 @@ class ServiceAuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     async def _emit_denied(self, request: Request, reason: str) -> None:
+        """Publish an access-denied event to the Redis Stream.
+
+        Failures are swallowed so a broken Redis connection never blocks the
+        auth denial response.
+
+        Args:
+            request: The denied HTTP request (used for IP and path metadata).
+            reason: Short string describing the denial reason (e.g. "expired").
+        """
         try:
             redis = request.app.state.redis
             publisher = EventPublisher(redis)

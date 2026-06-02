@@ -44,6 +44,19 @@ async def issue_service_token(
     session: AsyncSession,
     publisher: EventPublisher,
 ) -> ServiceTokenResponse:
+    """Authenticate a service client and issue a short-lived M2M JWT.
+
+    Args:
+        body: Request body containing service_id and service_secret.
+        session: Active database session.
+        publisher: Event publisher for dispatching the token-issued event.
+
+    Returns:
+        A ServiceTokenResponse with the access token and its TTL.
+
+    Raises:
+        AppError: If the service client is not found or credentials are invalid (401).
+    """
     client = (
         await session.execute(
             select(ServiceClient).where(
@@ -94,6 +107,17 @@ async def issue_service_token(
 
 
 async def introspect_service_token(body: ServiceIntrospectRequest) -> ServiceIntrospectResponse:
+    """Decode and validate a service M2M token, returning its claims.
+
+    Args:
+        body: Request body containing the raw service token string.
+
+    Returns:
+        A ServiceIntrospectResponse with the token's decoded claims.
+
+    Raises:
+        AppError: If the token is expired, invalid, or not of type "service".
+    """
     try:
         payload = jwt.decode(
             body.token,
@@ -127,6 +151,21 @@ async def create_service_client(
     session: AsyncSession,
     publisher: EventPublisher,
 ) -> ServiceClientCreateResponse:
+    """Register a new M2M service client and return its generated secret.
+
+    The secret is only returned once at creation time and is stored hashed.
+
+    Args:
+        body: Request body with the desired service_id.
+        session: Active database session.
+        publisher: Event publisher for dispatching the client-created event.
+
+    Returns:
+        A ServiceClientCreateResponse including the plain-text service_secret.
+
+    Raises:
+        AppError: If the service_id is already registered (409).
+    """
     existing = (
         await session.execute(select(ServiceClient).where(ServiceClient.service_id == body.service_id))
     ).scalar_one_or_none()
@@ -157,6 +196,17 @@ async def list_service_clients(
     page_size: int,
     include_deleted: bool = False,
 ) -> PagedResponse[ServiceClientResponse]:
+    """Return a paginated list of service clients.
+
+    Args:
+        session: Active database session.
+        page: 1-based page number.
+        page_size: Number of items per page.
+        include_deleted: If True, soft-deleted clients are included.
+
+    Returns:
+        A PagedResponse containing the current page of ServiceClientResponse items.
+    """
     base_q = select(ServiceClient)
     count_q = select(func.count()).select_from(ServiceClient)
     if not include_deleted:
@@ -170,6 +220,18 @@ async def list_service_clients(
 
 
 async def get_service_client(service_id: str, session: AsyncSession) -> ServiceClientResponse:
+    """Retrieve a single service client by its service_id.
+
+    Args:
+        service_id: The unique identifier of the service client.
+        session: Active database session.
+
+    Returns:
+        The corresponding ServiceClientResponse.
+
+    Raises:
+        AppError: If no service client exists with the given ID (404).
+    """
     client = (
         await session.execute(select(ServiceClient).where(ServiceClient.service_id == service_id))
     ).scalar_one_or_none()
@@ -183,6 +245,19 @@ async def update_service_client(
     body: ServiceClientUpdateRequest,
     session: AsyncSession,
 ) -> ServiceClientResponse:
+    """Update a service client's mutable fields.
+
+    Args:
+        service_id: The unique identifier of the service client.
+        body: Fields to update (currently only is_active).
+        session: Active database session.
+
+    Returns:
+        The updated ServiceClientResponse.
+
+    Raises:
+        AppError: If the service client is not found (404) or already deleted (409).
+    """
     client = (
         await session.execute(select(ServiceClient).where(ServiceClient.service_id == service_id))
     ).scalar_one_or_none()
@@ -204,6 +279,19 @@ async def delete_service_client(
     session: AsyncSession,
     publisher: EventPublisher,
 ) -> dict:
+    """Soft-delete a service client by its service_id.
+
+    Args:
+        service_id: The unique identifier of the service client.
+        session: Active database session.
+        publisher: Event publisher for dispatching the client-deleted event.
+
+    Returns:
+        A dict with a success message.
+
+    Raises:
+        AppError: If the service client is not found (404) or already deleted (409).
+    """
     client = (
         await session.execute(select(ServiceClient).where(ServiceClient.service_id == service_id))
     ).scalar_one_or_none()

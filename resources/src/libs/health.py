@@ -10,11 +10,16 @@ health_router = APIRouter(tags=["health"])
 
 @health_router.get("/health/live")
 async def liveness():
+    """Return a simple OK response to indicate the process is running."""
     return {"status": "ok"}
 
 
 @health_router.get("/health/ready")
 async def readiness():
+    """Check database and Redis connectivity to determine service readiness.
+
+    Returns a 200 response when all checks pass, or 503 when any check fails.
+    """
     checks: dict[str, str] = {}
 
     try:

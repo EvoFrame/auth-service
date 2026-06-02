@@ -28,6 +28,14 @@ class ServiceTokenCache:
         self._local_expires_at: float = 0.0
 
     async def get(self) -> str:
+        """Return a valid service JWT, using the local or Redis cache if possible.
+
+        Checks the in-process cache first, then Redis. Falls back to fetching
+        a fresh token from the auth-service if none is cached.
+
+        Returns:
+            A valid service JWT string.
+        """
         if self._local_token and time.time() < self._local_expires_at - BUFFER:
             return self._local_token
 
@@ -42,6 +50,15 @@ class ServiceTokenCache:
         return await self._refresh()
 
     async def _refresh(self) -> str:
+        """Acquire a distributed lock and fetch a fresh token from auth-service.
+
+        Uses a Redis lock to ensure only one replica requests a new token at a time.
+        If the lock cannot be acquired, waits briefly and checks if another replica
+        has already populated the cache.
+
+        Returns:
+            A freshly issued service JWT string.
+        """
         cache_key = CACHE_KEY.format(service_id=settings.SERVICE_ID)
         lock_key = LOCK_KEY.format(service_id=settings.SERVICE_ID)
 

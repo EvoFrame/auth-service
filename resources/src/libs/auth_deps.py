@@ -43,6 +43,15 @@ async def get_current_user(
 
 
 async def _load_user_permissions(user_id: uuid.UUID, session: AsyncSession) -> set[str]:
+    """Query all permission names granted to a user through their roles.
+
+    Args:
+        user_id: UUID of the user.
+        session: Active database session.
+
+    Returns:
+        A set of permission name strings.
+    """
     result = await session.execute(
         select(Permission.name)
         .join(RolePermission, Permission.id == RolePermission.permission_id)

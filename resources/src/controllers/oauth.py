@@ -38,11 +38,22 @@ async def _resolve_email(
     provider: str,
     userinfo: dict,
 ) -> str:
-    """Return the verified primary email for the authenticated user.
+    """Return the verified primary email for the authenticated OAuth user.
 
     GitHub users may have their email set to private, in which case the /user
-    endpoint returns null.  Fall back to /user/emails and pick the primary
+    endpoint returns null. Falls back to /user/emails to find the primary
     verified address.
+
+    Args:
+        client: An authenticated OAuth2 HTTP client.
+        provider: The OAuth provider name (e.g. "google" or "github").
+        userinfo: The user info payload returned by the provider.
+
+    Returns:
+        The verified primary email address string.
+
+    Raises:
+        AppError: If no verified email address can be retrieved (400).
     """
     cfg = _PROVIDERS[provider]
     email = userinfo.get(cfg["email_field"])
@@ -70,6 +81,23 @@ async def oauth_login(
     code: str,
     session: AsyncSession,
 ) -> dict:
+    """Exchange an OAuth authorization code for an access token.
+
+    Fetches user info from the provider, creates the user account if it does
+    not yet exist, and issues an access token.
+
+    Args:
+        provider: The OAuth provider key (e.g. "google" or "github").
+        code: The authorization code received from the provider callback.
+        session: Active database session.
+
+    Returns:
+        A dict with access_token, token_type, and expires_in.
+
+    Raises:
+        AppError: For unsupported/unconfigured providers, disabled/deleted accounts,
+            or if a verified email cannot be obtained.
+    """
     cfg = _PROVIDERS.get(provider)
     if not cfg:
         raise AppError(

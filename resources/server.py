@@ -19,6 +19,17 @@ configure_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown lifecycle.
+
+    On startup: initialises Redis, starts event consumers, and starts the
+    background scheduler. On shutdown: stops the scheduler and closes Redis.
+
+    Args:
+        app: The FastAPI application instance.
+
+    Yields:
+        Control to the running application.
+    """
     redis = await get_redis()
     app.state.redis = redis
     await start_all_consumers(redis)
@@ -29,6 +40,13 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    """Construct and configure the FastAPI application.
+
+    Registers middlewares, exception handlers, routers, and Prometheus metrics.
+
+    Returns:
+        A fully configured FastAPI application instance.
+    """
     app = FastAPI(
         title=settings.SERVICE_NAME,
         version=settings.SERVICE_VERSION,
