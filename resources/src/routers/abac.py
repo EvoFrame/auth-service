@@ -39,7 +39,7 @@ async def evaluate(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> EvaluationResponse:
-    caller_service: str = request.state.caller_service
+    caller_service: str = getattr(request.state, "caller_service", "test-client")
     return await abac_ctrl.evaluate_access(body, caller_service, session)
 
 

@@ -134,7 +134,9 @@ def _source_bag(ctx: EvaluationContext, source: str) -> dict[str, str]:
 
 
 def _policy_fires(policy: PolicySpec, ctx: EvaluationContext) -> bool:
-    """Return True only when ALL conditions of a policy match the context."""
+    """Return True only when the policy has at least one condition and ALL conditions match the context."""
+    if not policy.conditions:
+        return False
     for cond in policy.conditions:
         bag = _source_bag(ctx, cond.attribute_source)
         actual = bag.get(cond.attribute_key)
