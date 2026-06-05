@@ -71,6 +71,7 @@ class EvaluationResult:
 # Operator implementations
 # ---------------------------------------------------------------------------
 
+
 def _coerce_float(v: str) -> float:
     try:
         return float(v)
@@ -120,6 +121,7 @@ def _match_operator(operator: str, actual: str | None, condition_value: str) -> 
 # ---------------------------------------------------------------------------
 # Policy evaluation
 # ---------------------------------------------------------------------------
+
 
 def _source_bag(ctx: EvaluationContext, source: str) -> dict[str, str]:
     match source:

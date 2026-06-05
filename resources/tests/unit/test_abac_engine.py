@@ -67,27 +67,39 @@ def test_allow_fires_on_eq_match():
 
 
 def test_allow_all_conditions_must_match():
-    p = _policy("allow", [
-        _cond("subject", "department", "eq", "engineering"),
-        _cond("environment", "caller_service", "eq", "api-gateway"),
-    ])
+    p = _policy(
+        "allow",
+        [
+            _cond("subject", "department", "eq", "engineering"),
+            _cond("environment", "caller_service", "eq", "api-gateway"),
+        ],
+    )
     # Only first condition matches
-    result = evaluate([p], _ctx(
-        subject={"department": "engineering"},
-        environment={"caller_service": "other-service"},
-    ))
+    result = evaluate(
+        [p],
+        _ctx(
+            subject={"department": "engineering"},
+            environment={"caller_service": "other-service"},
+        ),
+    )
     assert result.decision == "deny"
 
 
 def test_allow_all_conditions_match():
-    p = _policy("allow", [
-        _cond("subject", "department", "eq", "engineering"),
-        _cond("environment", "caller_service", "eq", "api-gateway"),
-    ])
-    result = evaluate([p], _ctx(
-        subject={"department": "engineering"},
-        environment={"caller_service": "api-gateway"},
-    ))
+    p = _policy(
+        "allow",
+        [
+            _cond("subject", "department", "eq", "engineering"),
+            _cond("environment", "caller_service", "eq", "api-gateway"),
+        ],
+    )
+    result = evaluate(
+        [p],
+        _ctx(
+            subject={"department": "engineering"},
+            environment={"caller_service": "api-gateway"},
+        ),
+    )
     assert result.decision == "allow"
 
 
@@ -183,12 +195,18 @@ def test_priority_higher_evaluated_first():
 
 
 def test_resource_and_environment_attributes():
-    p = _policy("allow", [
-        _cond("resource", "owner_id", "eq", "user-123"),
-        _cond("environment", "action", "eq", "read"),
-    ])
-    result = evaluate([p], _ctx(
-        resource={"owner_id": "user-123"},
-        environment={"action": "read"},
-    ))
+    p = _policy(
+        "allow",
+        [
+            _cond("resource", "owner_id", "eq", "user-123"),
+            _cond("environment", "action", "eq", "read"),
+        ],
+    )
+    result = evaluate(
+        [p],
+        _ctx(
+            resource={"owner_id": "user-123"},
+            environment={"action": "read"},
+        ),
+    )
     assert result.decision == "allow"

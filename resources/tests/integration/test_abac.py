@@ -10,7 +10,6 @@ from argon2 import PasswordHasher
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.config.settings import settings
 from src.models.rbac import Permission, Role, RolePermission, UserRole
 from src.models.user import User
@@ -180,7 +179,9 @@ async def test_delete_attribute(client: AsyncClient, abac_admin: uuid.UUID, subj
     assert "temp_key" not in keys
 
 
-async def test_delete_missing_attribute_returns_404(client: AsyncClient, abac_admin: uuid.UUID, subject_user: uuid.UUID):
+async def test_delete_missing_attribute_returns_404(
+    client: AsyncClient, abac_admin: uuid.UUID, subject_user: uuid.UUID
+):
     r = await client.delete(
         f"{BASE}/users/{subject_user}/attributes/does_not_exist",
         headers=_auth(abac_admin),
@@ -314,9 +315,7 @@ async def test_evaluate_default_deny(client: AsyncClient, abac_admin: uuid.UUID,
     assert r.json()["matched_policy_name"] == "default-deny"
 
 
-async def test_evaluate_allow_on_attribute_match(
-    client: AsyncClient, abac_admin: uuid.UUID, subject_user: uuid.UUID
-):
+async def test_evaluate_allow_on_attribute_match(client: AsyncClient, abac_admin: uuid.UUID, subject_user: uuid.UUID):
     """Set department=engineering, create allow policy, expect allow."""
     headers = _auth(abac_admin)
 
@@ -355,9 +354,7 @@ async def test_evaluate_allow_on_attribute_match(
     await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)
 
 
-async def test_evaluate_deny_overrides_allow(
-    client: AsyncClient, abac_admin: uuid.UUID, subject_user: uuid.UUID
-):
+async def test_evaluate_deny_overrides_allow(client: AsyncClient, abac_admin: uuid.UUID, subject_user: uuid.UUID):
     """A deny policy fires alongside an allow → deny wins."""
     headers = _auth(abac_admin)
 
@@ -420,9 +417,7 @@ async def test_evaluate_unknown_user_404(client: AsyncClient, abac_admin: uuid.U
     assert r.status_code == 404
 
 
-async def test_evaluate_caller_service_injected(
-    client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID
-):
+async def test_evaluate_caller_service_injected(client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID):
     """Verify caller_service ends up in the environment and can be matched by a policy."""
     headers = _auth(abac_admin)
 

@@ -36,6 +36,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     Args:
         app: The FastAPI application instance to register handlers on.
     """
+
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError):
         return JSONResponse(

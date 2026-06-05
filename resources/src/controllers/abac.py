@@ -76,7 +76,14 @@ async def list_policies(session: AsyncSession, page: int = 1, page_size: int = 5
 
     total = (await session.execute(select(func.count()).select_from(Policy))).scalar_one()
     rows = (
-        (await session.execute(select(Policy).order_by(Policy.priority.desc(), Policy.name).offset((page - 1) * page_size).limit(page_size)))
+        (
+            await session.execute(
+                select(Policy)
+                .order_by(Policy.priority.desc(), Policy.name)
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
+        )
         .scalars()
         .all()
     )
@@ -201,9 +208,7 @@ async def evaluate_access(
         raise AppError("NOT_FOUND", "User not found.", status_code=404)
 
     # 2. Load user attributes
-    attr_rows = await session.execute(
-        select(UserAttribute).where(UserAttribute.user_id == request.user_id)
-    )
+    attr_rows = await session.execute(select(UserAttribute).where(UserAttribute.user_id == request.user_id))
     subject: dict[str, str] = {a.key: a.value for a in attr_rows.scalars().all()}
 
     # 3. Inject derived subject fields
@@ -216,7 +221,8 @@ async def evaluate_access(
         select(Role.name).join(UserRole, Role.id == UserRole.role_id).where(UserRole.user_id == user.id)
     )
     import json
-    subject["roles"] = json.dumps(sorted(r for r, in roles_result.all()))
+
+    subject["roles"] = json.dumps(sorted(r for (r,) in roles_result.all()))
 
     perms_result = await session.execute(
         select(Permission.name)
@@ -226,7 +232,7 @@ async def evaluate_access(
         .where(UserRole.user_id == user.id)
         .distinct()
     )
-    subject["permissions"] = json.dumps(sorted(p for p, in perms_result.all()))
+    subject["permissions"] = json.dumps(sorted(p for (p,) in perms_result.all()))
 
     # 5. Build environment — caller_service is always injected server-side
     environment = dict(request.environment_attributes)
@@ -235,18 +241,16 @@ async def evaluate_access(
     environment["resource_type"] = request.resource_type
 
     # 6. Load active policies and their conditions
-    policy_rows = (
-        (await session.execute(select(Policy).where(Policy.is_active.is_(True))))
-        .scalars()
-        .all()
-    )
+    policy_rows = (await session.execute(select(Policy).where(Policy.is_active.is_(True)))).scalars().all()
     policy_ids = [p.id for p in policy_rows]
 
     conditions_by_policy: dict[uuid.UUID, list[PolicyCondition]] = {pid: [] for pid in policy_ids}
     if policy_ids:
         cond_rows = (
-            await session.execute(select(PolicyCondition).where(PolicyCondition.policy_id.in_(policy_ids)))
-        ).scalars().all()
+            (await session.execute(select(PolicyCondition).where(PolicyCondition.policy_id.in_(policy_ids))))
+            .scalars()
+            .all()
+        )
         for c in cond_rows:
             conditions_by_policy[c.policy_id].append(c)
 
@@ -322,7 +326,13 @@ def _validate_operator(operator: str) -> None:
 
 async def _build_policy_detail(policy: Policy, session: AsyncSession) -> PolicyDetailResponse:
     cond_rows = (
-        (await session.execute(select(PolicyCondition).where(PolicyCondition.policy_id == policy.id).order_by(PolicyCondition.attribute_key)))
+        (
+            await session.execute(
+                select(PolicyCondition)
+                .where(PolicyCondition.policy_id == policy.id)
+                .order_by(PolicyCondition.attribute_key)
+            )
+        )
         .scalars()
         .all()
     )
