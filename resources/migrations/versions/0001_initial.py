@@ -26,12 +26,17 @@ def upgrade() -> None:
         sa.Column("is_verified", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("mfa_enabled", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("totp_secret_enc", sa.String(), nullable=True),
+        sa.Column("backup_email", sa.String(), nullable=True),
+        sa.Column("backup_email_verified", sa.Boolean(), nullable=False, server_default=sa.false()),
+        # Audit columns — always last
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("email"),
+        sa.UniqueConstraint("backup_email"),
     )
     op.create_index("ix_users_email", "users", ["email"])
+    op.create_index("ix_users_backup_email", "users", ["backup_email"], unique=True)
 
     op.create_table(
         "refresh_sessions",
@@ -114,5 +119,6 @@ def downgrade() -> None:
     op.drop_index("ix_refresh_sessions_token_hash", table_name="refresh_sessions")
     op.drop_index("ix_refresh_sessions_user_id", table_name="refresh_sessions")
     op.drop_table("refresh_sessions")
+    op.drop_index("ix_users_backup_email", table_name="users")
     op.drop_index("ix_users_email", table_name="users")
     op.drop_table("users")
