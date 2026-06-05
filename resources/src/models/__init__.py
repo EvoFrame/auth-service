@@ -1,3 +1,4 @@
+from src.models.abac import Policy, PolicyCondition, UserAttribute
 from src.models.rbac import Permission, Role, RolePermission, UserRole
 from src.models.service_client import ServiceClient
 from src.models.session import RefreshSession
@@ -11,4 +12,7 @@ __all__ = [
     "Permission",
     "RolePermission",
     "UserRole",
+    "UserAttribute",
+    "Policy",
+    "PolicyCondition",
 ]
