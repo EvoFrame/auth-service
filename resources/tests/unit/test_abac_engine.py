@@ -3,16 +3,12 @@
 import json
 import uuid
 
-import pytest
-
 from src.libs.abac_engine import (
     ConditionSpec,
     EvaluationContext,
     PolicySpec,
     evaluate,
 )
-
-pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 def _policy(effect: str, conditions: list[ConditionSpec], priority: int = 0) -> PolicySpec:
