@@ -85,4 +85,3 @@ networks:
     name: ${COMPOSE_PROJECT_NAME}_monitoring
   evoframe-internal:
     name: evoframe-internal
-    external: true
