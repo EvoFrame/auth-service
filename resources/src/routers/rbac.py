@@ -26,7 +26,7 @@ _write = Depends(require_permission("roles:write"))
 # Roles
 # ---------------------------------------------------------------------------
 
-_roles_router = APIRouter(prefix="/roles", tags=["Roles"])
+_roles_router = APIRouter(prefix="/roles", tags=["[RBAC] Roles"])
 
 
 @_roles_router.get("", response_model=PagedResponse[RoleResponse], dependencies=[_read])
@@ -75,7 +75,7 @@ async def delete_role(
 # Permissions
 # ---------------------------------------------------------------------------
 
-_permissions_router = APIRouter(prefix="/permissions", tags=["Permissions"])
+_permissions_router = APIRouter(prefix="/permissions", tags=["[RBAC] Permissions"])
 
 
 @_permissions_router.get("", response_model=PagedResponse[PermissionResponse], dependencies=[_read])
@@ -107,7 +107,7 @@ async def delete_permission(
 # Role ↔ Permission assignments
 # ---------------------------------------------------------------------------
 
-_role_permissions_router = APIRouter(tags=["Role Permissions"])
+_role_permissions_router = APIRouter(tags=["[RBAC] Role Permissions"])
 
 
 @_role_permissions_router.post(
@@ -140,7 +140,7 @@ async def remove_permission_from_role(
 # User ↔ Role assignments
 # ---------------------------------------------------------------------------
 
-_user_roles_router = APIRouter(prefix="/users", tags=["User Roles"])
+_user_roles_router = APIRouter(prefix="/users", tags=["[RBAC] User Roles"])
 
 
 @_user_roles_router.get("/{user_id}/roles", response_model=UserRolesResponse, dependencies=[_read])

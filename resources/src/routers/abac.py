@@ -25,7 +25,11 @@ _read = Depends(require_permission("abac:read"))
 _write = Depends(require_permission("abac:write"))
 _evaluate = Depends(require_permission("abac:evaluate"))
 
-router = APIRouter(prefix="/abac", tags=["ABAC"])
+
+_evaluation_router = APIRouter(tags=["[ABAC] Evaluation"])
+_user_attributes_router = APIRouter(prefix="/users", tags=["[ABAC] User Attributes"])
+_policies_router = APIRouter(prefix="/policies", tags=["[ABAC] Policies"])
+_policy_conditions_router = APIRouter(tags=["[ABAC] Policy Conditions"])
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +37,7 @@ router = APIRouter(prefix="/abac", tags=["ABAC"])
 # ---------------------------------------------------------------------------
 
 
-@router.post("/evaluate", response_model=EvaluationResponse, dependencies=[_evaluate])
+@_evaluation_router.post("/evaluate", response_model=EvaluationResponse, dependencies=[_evaluate])
 async def evaluate(
     body: EvaluationRequest,
     request: Request,
@@ -48,7 +52,11 @@ async def evaluate(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/users/{user_id}/attributes", response_model=list[UserAttributeResponse], dependencies=[_read])
+@_user_attributes_router.get(
+    "/{user_id}/attributes",
+    response_model=list[UserAttributeResponse],
+    dependencies=[_read],
+)
 async def list_user_attributes(
     user_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -56,8 +64,8 @@ async def list_user_attributes(
     return await abac_ctrl.list_user_attributes(user_id, session)
 
 
-@router.put(
-    "/users/{user_id}/attributes/{key}",
+@_user_attributes_router.put(
+    "/{user_id}/attributes/{key}",
     response_model=UserAttributeResponse,
     dependencies=[_write],
 )
@@ -70,7 +78,7 @@ async def upsert_user_attribute(
     return await abac_ctrl.upsert_user_attribute(user_id, key, body, session)
 
 
-@router.delete("/users/{user_id}/attributes/{key}", status_code=204, dependencies=[_write])
+@_user_attributes_router.delete("/{user_id}/attributes/{key}", status_code=204, dependencies=[_write])
 async def delete_user_attribute(
     user_id: uuid.UUID,
     key: str,
@@ -84,7 +92,7 @@ async def delete_user_attribute(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/policies", response_model=PagedResponse[PolicyResponse], dependencies=[_read])
+@_policies_router.get("", response_model=PagedResponse[PolicyResponse], dependencies=[_read])
 async def list_policies(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -93,7 +101,7 @@ async def list_policies(
     return await abac_ctrl.list_policies(session, page=page, page_size=page_size)
 
 
-@router.post("/policies", response_model=PolicyDetailResponse, status_code=201, dependencies=[_write])
+@_policies_router.post("", response_model=PolicyDetailResponse, status_code=201, dependencies=[_write])
 async def create_policy(
     body: PolicyCreateRequest,
     session: AsyncSession = Depends(get_session),
@@ -102,7 +110,7 @@ async def create_policy(
     return await abac_ctrl.get_policy(policy.id, session)
 
 
-@router.get("/policies/{policy_id}", response_model=PolicyDetailResponse, dependencies=[_read])
+@_policies_router.get("/{policy_id}", response_model=PolicyDetailResponse, dependencies=[_read])
 async def get_policy(
     policy_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -110,7 +118,7 @@ async def get_policy(
     return await abac_ctrl.get_policy(policy_id, session)
 
 
-@router.patch("/policies/{policy_id}", response_model=PolicyResponse, dependencies=[_write])
+@_policies_router.patch("/{policy_id}", response_model=PolicyResponse, dependencies=[_write])
 async def update_policy(
     policy_id: uuid.UUID,
     body: PolicyUpdateRequest,
@@ -119,7 +127,7 @@ async def update_policy(
     return await abac_ctrl.update_policy(policy_id, body, session)
 
 
-@router.delete("/policies/{policy_id}", status_code=204, dependencies=[_write])
+@_policies_router.delete("/{policy_id}", status_code=204, dependencies=[_write])
 async def delete_policy(
     policy_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -132,7 +140,7 @@ async def delete_policy(
 # ---------------------------------------------------------------------------
 
 
-@router.post(
+@_policy_conditions_router.post(
     "/policies/{policy_id}/conditions",
     response_model=PolicyDetailResponse,
     status_code=201,
@@ -146,9 +154,16 @@ async def add_condition(
     return await abac_ctrl.add_condition(policy_id, body, session)
 
 
-@router.delete("/conditions/{condition_id}", status_code=204, dependencies=[_write])
+@_policy_conditions_router.delete("/conditions/{condition_id}", status_code=204, dependencies=[_write])
 async def remove_condition(
     condition_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
 ) -> None:
     await abac_ctrl.remove_condition(condition_id, session)
+
+
+router = APIRouter(prefix="/abac")
+router.include_router(_evaluation_router)
+router.include_router(_user_attributes_router)
+router.include_router(_policies_router)
+router.include_router(_policy_conditions_router)
