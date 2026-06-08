@@ -44,3 +44,5 @@ class PolicyCondition(SQLModel, table=True):
     attribute_key: str = Field(nullable=False)
     operator: str = Field(nullable=False)
     value: str = Field(nullable=False)  # raw string or JSON-encoded list for in/not_in
+    value_ref_source: str | None = Field(default=None, nullable=True)  # "subject"|"resource"|"environment"
+    value_ref_key: str | None = Field(default=None, nullable=True)     # attribute key to resolve

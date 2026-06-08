@@ -169,6 +169,7 @@ async def add_condition(
 
     _validate_source(data.attribute_source)
     _validate_operator(data.operator)
+    _validate_value_ref(data.value_ref_source, data.value_ref_key)
 
     cond = PolicyCondition(
         policy_id=policy_id,
@@ -176,6 +177,8 @@ async def add_condition(
         attribute_key=data.attribute_key,
         operator=data.operator,
         value=data.value,
+        value_ref_source=data.value_ref_source,
+        value_ref_key=data.value_ref_key,
     )
     session.add(cond)
     await session.commit()
@@ -266,6 +269,8 @@ async def evaluate_access(
                     attribute_key=c.attribute_key,
                     operator=c.operator,
                     value=c.value,
+                    value_ref_source=c.value_ref_source,
+                    value_ref_key=c.value_ref_key,
                 )
                 for c in conditions_by_policy[p.id]
             ],
@@ -322,6 +327,17 @@ def _validate_operator(operator: str) -> None:
     valid = {"eq", "neq", "in", "not_in", "contains", "gt", "lt", "gte", "lte"}
     if operator not in valid:
         raise AppError("VALIDATION_ERROR", f"Operator must be one of: {', '.join(sorted(valid))}.", status_code=422)
+
+
+def _validate_value_ref(value_ref_source: str | None, value_ref_key: str | None) -> None:
+    if bool(value_ref_source) != bool(value_ref_key):
+        raise AppError(
+            "VALIDATION_ERROR",
+            "value_ref_source and value_ref_key must both be set or both be absent.",
+            status_code=422,
+        )
+    if value_ref_source:
+        _validate_source(value_ref_source)
 
 
 async def _build_policy_detail(policy: Policy, session: AsyncSession) -> PolicyDetailResponse:

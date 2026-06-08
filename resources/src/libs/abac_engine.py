@@ -34,7 +34,9 @@ class ConditionSpec:
     attribute_source: str  # "subject" | "resource" | "environment"
     attribute_key: str
     operator: str
-    value: str
+    value: str                           # literal value (used when value_ref_source is None)
+    value_ref_source: str | None = None  # "subject" | "resource" | "environment"
+    value_ref_key: str | None = None     # attribute key to resolve from that bag
 
 
 @dataclass
@@ -135,6 +137,21 @@ def _source_bag(ctx: EvaluationContext, source: str) -> dict[str, str]:
             return {}
 
 
+def _resolve_rhs(cond: ConditionSpec, ctx: EvaluationContext) -> str | None:
+    """Return the right-hand side value for the condition.
+
+    If ``value_ref_source`` and ``value_ref_key`` are set, resolve the value
+    dynamically from the appropriate context bag.  If the referenced key is
+    absent the condition will not match (returns ``None``).
+
+    Otherwise return the stored literal value.
+    """
+    if cond.value_ref_source and cond.value_ref_key:
+        bag = _source_bag(ctx, cond.value_ref_source)
+        return bag.get(cond.value_ref_key)
+    return cond.value
+
+
 def _policy_fires(policy: PolicySpec, ctx: EvaluationContext) -> bool:
     """Return True only when the policy has at least one condition and ALL conditions match the context."""
     if not policy.conditions:
@@ -142,7 +159,8 @@ def _policy_fires(policy: PolicySpec, ctx: EvaluationContext) -> bool:
     for cond in policy.conditions:
         bag = _source_bag(ctx, cond.attribute_source)
         actual = bag.get(cond.attribute_key)
-        if not _match_operator(cond.operator, actual, cond.value):
+        rhs = _resolve_rhs(cond, ctx)
+        if rhs is None or not _match_operator(cond.operator, actual, rhs):
             return False
     return True
 

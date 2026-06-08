@@ -30,7 +30,9 @@ class PolicyConditionCreateRequest(BaseModel):
     attribute_source: str  # "subject" | "resource" | "environment"
     attribute_key: str
     operator: str  # eq | neq | in | not_in | contains | gt | lt | gte | lte
-    value: str
+    value: str = ""
+    value_ref_source: str | None = None  # set to compare against another attribute
+    value_ref_key: str | None = None     # attribute key in value_ref_source bag
 
 
 class PolicyConditionResponse(BaseModel):
@@ -40,6 +42,8 @@ class PolicyConditionResponse(BaseModel):
     attribute_key: str
     operator: str
     value: str
+    value_ref_source: str | None
+    value_ref_key: str | None
 
 
 # ---------------------------------------------------------------------------
