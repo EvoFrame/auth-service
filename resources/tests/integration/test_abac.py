@@ -449,3 +449,138 @@ async def test_evaluate_caller_service_injected(client: AsyncClient, abac_admin:
     assert r.json()["decision"] == "deny"
 
     await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)
+
+
+# ---------------------------------------------------------------------------
+# Cross-attribute comparison
+# ---------------------------------------------------------------------------
+
+
+async def test_condition_with_value_ref_stored_and_returned(client: AsyncClient, abac_admin: uuid.UUID):
+    """Create a condition with value_ref fields and verify they are returned by GET."""
+    headers = _auth(abac_admin)
+
+    r = await client.post(
+        f"{BASE}/policies",
+        json={"name": f"ref-policy-{uuid.uuid4().hex[:6]}", "effect": "allow", "is_active": False},
+        headers=headers,
+    )
+    policy_id = r.json()["id"]
+
+    r = await client.post(
+        f"{BASE}/policies/{policy_id}/conditions",
+        json={
+            "attribute_source": "subject",
+            "attribute_key": "user_id",
+            "operator": "eq",
+            "value_ref_source": "resource",
+            "value_ref_key": "owner_id",
+        },
+        headers=headers,
+    )
+    assert r.status_code == 201
+    cond = r.json()["conditions"][0]
+    assert cond["value_ref_source"] == "resource"
+    assert cond["value_ref_key"] == "owner_id"
+
+    r = await client.get(f"{BASE}/policies/{policy_id}", headers=headers)
+    cond = r.json()["conditions"][0]
+    assert cond["value_ref_source"] == "resource"
+    assert cond["value_ref_key"] == "owner_id"
+
+
+async def test_evaluate_cross_attr_allow_when_owner(
+    client: AsyncClient, abac_admin: uuid.UUID, subject_user: uuid.UUID
+):
+    """User owns the resource (subject.user_id eq resource.owner_id) → allow."""
+    headers = _auth(abac_admin)
+
+    await client.put(
+        f"{BASE}/users/{subject_user}/attributes/user_id",
+        json={"value": str(subject_user)},
+        headers=headers,
+    )
+
+    policy_name = f"owner-allow-{uuid.uuid4().hex[:6]}"
+    r = await client.post(
+        f"{BASE}/policies",
+        json={"name": policy_name, "effect": "allow", "priority": 60, "is_active": True},
+        headers=headers,
+    )
+    policy_id = r.json()["id"]
+
+    await client.post(
+        f"{BASE}/policies/{policy_id}/conditions",
+        json={
+            "attribute_source": "subject",
+            "attribute_key": "user_id",
+            "operator": "eq",
+            "value_ref_source": "resource",
+            "value_ref_key": "owner_id",
+        },
+        headers=headers,
+    )
+
+    r = await client.post(
+        f"{BASE}/evaluate",
+        json={
+            "user_id": str(subject_user),
+            "action": "read",
+            "resource_type": "file",
+            "resource_attributes": {"owner_id": str(subject_user)},
+        },
+        headers=headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["decision"] == "allow"
+    assert r.json()["matched_policy_name"] == policy_name
+
+    await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)
+
+
+async def test_evaluate_cross_attr_deny_when_not_owner(
+    client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID
+):
+    """User does not own the resource → no match → deny."""
+    headers = _auth(abac_admin)
+
+    await client.put(
+        f"{BASE}/users/{fresh_user}/attributes/user_id",
+        json={"value": str(fresh_user)},
+        headers=headers,
+    )
+
+    policy_name = f"owner-allow2-{uuid.uuid4().hex[:6]}"
+    r = await client.post(
+        f"{BASE}/policies",
+        json={"name": policy_name, "effect": "allow", "priority": 60, "is_active": True},
+        headers=headers,
+    )
+    policy_id = r.json()["id"]
+
+    await client.post(
+        f"{BASE}/policies/{policy_id}/conditions",
+        json={
+            "attribute_source": "subject",
+            "attribute_key": "user_id",
+            "operator": "eq",
+            "value_ref_source": "resource",
+            "value_ref_key": "owner_id",
+        },
+        headers=headers,
+    )
+
+    r = await client.post(
+        f"{BASE}/evaluate",
+        json={
+            "user_id": str(fresh_user),
+            "action": "read",
+            "resource_type": "file",
+            "resource_attributes": {"owner_id": str(uuid.uuid4())},
+        },
+        headers=headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["decision"] == "deny"
+
+    await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)

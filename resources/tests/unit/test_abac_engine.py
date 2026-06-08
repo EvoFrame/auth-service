@@ -210,3 +210,60 @@ def test_resource_and_environment_attributes():
         ),
     )
     assert result.decision == "allow"
+
+
+# ---------------------------------------------------------------------------
+# Cross-attribute comparison
+# ---------------------------------------------------------------------------
+
+
+def _ref_cond(source: str, key: str, operator: str, ref_source: str, ref_key: str) -> ConditionSpec:
+    return ConditionSpec(
+        attribute_source=source,
+        attribute_key=key,
+        operator=operator,
+        value="",
+        value_ref_source=ref_source,
+        value_ref_key=ref_key,
+    )
+
+
+def test_cross_attr_eq_allow():
+    """subject.user_id eq resource.owner_id → allow when equal."""
+    p = _policy("allow", [_ref_cond("subject", "user_id", "eq", "resource", "owner_id")])
+    user_id = "abc-123"
+    result = evaluate([p], _ctx(subject={"user_id": user_id}, resource={"owner_id": user_id}))
+    assert result.decision == "allow"
+
+
+def test_cross_attr_eq_deny_when_different():
+    """subject.user_id eq resource.owner_id → deny when different."""
+    p = _policy("allow", [_ref_cond("subject", "user_id", "eq", "resource", "owner_id")])
+    result = evaluate([p], _ctx(subject={"user_id": "user-a"}, resource={"owner_id": "user-b"}))
+    assert result.decision == "deny"
+
+
+def test_cross_attr_ref_missing_from_bag():
+    """Referenced key absent from bag → condition does not match."""
+    p = _policy("allow", [_ref_cond("subject", "user_id", "eq", "resource", "owner_id")])
+    result = evaluate([p], _ctx(subject={"user_id": "user-a"}, resource={}))
+    assert result.decision == "deny"
+
+
+def test_cross_attr_mixed_literal_and_ref():
+    """Policy with one literal condition and one ref condition — both must match."""
+    p = _policy("allow", [
+        _cond("environment", "action", "eq", "read"),
+        _ref_cond("subject", "user_id", "eq", "resource", "owner_id"),
+    ])
+    user_id = "user-x"
+    assert evaluate([p], _ctx(
+        subject={"user_id": user_id},
+        resource={"owner_id": user_id},
+        environment={"action": "read"},
+    )).decision == "allow"
+    assert evaluate([p], _ctx(
+        subject={"user_id": user_id},
+        resource={"owner_id": user_id},
+        environment={"action": "write"},
+    )).decision == "deny"

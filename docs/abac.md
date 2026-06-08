@@ -89,6 +89,17 @@ environment       caller_service   in        ["api-gateway","worker-service"]
 resource          owner_id         eq        <some-uuid>
 ```
 
+A condition can also compare an attribute against **another attribute** from any bag instead
+of a hard-coded literal. Use `value_ref_source` and `value_ref_key` for this:
+
+```
+attribute_source  attribute_key  operator  value_ref_source  value_ref_key
+subject           user_id        eq        resource          owner_id
+```
+
+This fires only when `subject["user_id"] == resource["owner_id"]` at evaluation time.
+`value_ref_source` and `value_ref_key` must both be set or both be absent.
+
 #### Supported operators
 
 | Operator | Description | Value format |
@@ -106,6 +117,10 @@ resource          owner_id         eq        <some-uuid>
 > All attribute values are strings. Numeric operators (`gt`, `lt`, `gte`, `lte`) coerce
 > both sides to `float` before comparing. List operators (`in`, `not_in`) expect the
 > condition `value` to be a valid JSON array string.
+>
+> **Limitation:** `in` / `not_in` are not meaningful with a `value_ref` (the resolved
+> attribute is always a scalar string, not a list). Use `eq` / `neq` for cross-attribute
+> comparisons.
 
 ---
 
@@ -244,7 +259,9 @@ policy_conditions
 ├── attribute_source  TEXT   "subject" | "resource" | "environment"
 ├── attribute_key     TEXT
 ├── operator          TEXT   eq | neq | in | not_in | contains | gt | lt | gte | lte
-└── value             TEXT   raw string or JSON-encoded list
+├── value             TEXT   literal value (or empty string when value_ref is used)
+├── value_ref_source  TEXT?  resolve RHS dynamically from this bag
+└── value_ref_key     TEXT?  attribute key to look up in value_ref_source bag
 ```
 
 ---
@@ -284,6 +301,41 @@ And this will return `deny` (wrong action):
   "resource_attributes": { "classification": "internal" }
 }
 ```
+
+---
+
+## Example: allow a user to access their own file (cross-attribute comparison)
+
+```
+Policy: "allow-owner-read"
+  effect:    allow
+  priority:  20
+  is_active: true
+
+Conditions:
+  subject.user_id  eq  resource.owner_id   ← value_ref_source=resource, value_ref_key=owner_id
+  environment.action  eq  read
+```
+
+For this to work, each user must have a `user_id` attribute set (e.g. equal to their UUID):
+
+```bash
+PUT /api/v1/abac/users/{user_id}/attributes/user_id
+{ "value": "<user_id>" }
+```
+
+Then the calling service (e.g. `file-service`) includes the file's owner in the request:
+
+```json
+{
+  "user_id": "<requesting user uuid>",
+  "action": "read",
+  "resource_type": "file",
+  "resource_attributes": { "owner_id": "<file owner uuid>" }
+}
+```
+
+If `subject["user_id"] == resource["owner_id"]` → `allow`. Otherwise → `deny`.
 
 ---
 
