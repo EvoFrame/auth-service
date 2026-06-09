@@ -252,18 +252,33 @@ def test_cross_attr_ref_missing_from_bag():
 
 def test_cross_attr_mixed_literal_and_ref():
     """Policy with one literal condition and one ref condition — both must match."""
-    p = _policy("allow", [
-        _cond("environment", "action", "eq", "read"),
-        _ref_cond("subject", "user_id", "eq", "resource", "owner_id"),
-    ])
+    p = _policy(
+        "allow",
+        [
+            _cond("environment", "action", "eq", "read"),
+            _ref_cond("subject", "user_id", "eq", "resource", "owner_id"),
+        ],
+    )
     user_id = "user-x"
-    assert evaluate([p], _ctx(
-        subject={"user_id": user_id},
-        resource={"owner_id": user_id},
-        environment={"action": "read"},
-    )).decision == "allow"
-    assert evaluate([p], _ctx(
-        subject={"user_id": user_id},
-        resource={"owner_id": user_id},
-        environment={"action": "write"},
-    )).decision == "deny"
+    assert (
+        evaluate(
+            [p],
+            _ctx(
+                subject={"user_id": user_id},
+                resource={"owner_id": user_id},
+                environment={"action": "read"},
+            ),
+        ).decision
+        == "allow"
+    )
+    assert (
+        evaluate(
+            [p],
+            _ctx(
+                subject={"user_id": user_id},
+                resource={"owner_id": user_id},
+                environment={"action": "write"},
+            ),
+        ).decision
+        == "deny"
+    )

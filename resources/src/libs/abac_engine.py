@@ -34,9 +34,9 @@ class ConditionSpec:
     attribute_source: str  # "subject" | "resource" | "environment"
     attribute_key: str
     operator: str
-    value: str                           # literal value (used when value_ref_source is None)
+    value: str  # literal value (used when value_ref_source is None)
     value_ref_source: str | None = None  # "subject" | "resource" | "environment"
-    value_ref_key: str | None = None     # attribute key to resolve from that bag
+    value_ref_key: str | None = None  # attribute key to resolve from that bag
 
 
 @dataclass

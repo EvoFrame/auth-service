@@ -32,7 +32,7 @@ class PolicyConditionCreateRequest(BaseModel):
     operator: str  # eq | neq | in | not_in | contains | gt | lt | gte | lte
     value: str = ""
     value_ref_source: str | None = None  # set to compare against another attribute
-    value_ref_key: str | None = None     # attribute key in value_ref_source bag
+    value_ref_key: str | None = None  # attribute key in value_ref_source bag
 
 
 class PolicyConditionResponse(BaseModel):
@@ -58,7 +58,7 @@ class PolicyCreateRequest(BaseModel):
     priority: int = 0
     is_active: bool = True
     scope_resource_type: str | None = None  # NULL = all resource types
-    scope_action: str | None = None         # NULL = all actions
+    scope_action: str | None = None  # NULL = all actions
 
 
 class PolicyUpdateRequest(BaseModel):

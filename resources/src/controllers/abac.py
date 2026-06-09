@@ -253,14 +253,18 @@ async def evaluate_access(
 
     # 6. Load active policies pre-filtered by scope — NULL scope columns match any value (wildcard)
     policy_rows = (
-        await session.execute(
-            select(Policy).where(
-                Policy.is_active.is_(True),
-                or_(Policy.scope_resource_type.is_(None), Policy.scope_resource_type == request.resource_type),
-                or_(Policy.scope_action.is_(None), Policy.scope_action == request.action),
+        (
+            await session.execute(
+                select(Policy).where(
+                    Policy.is_active.is_(True),
+                    or_(Policy.scope_resource_type.is_(None), Policy.scope_resource_type == request.resource_type),
+                    or_(Policy.scope_action.is_(None), Policy.scope_action == request.action),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     policy_ids = [p.id for p in policy_rows]
 
     conditions_by_policy: dict[uuid.UUID, list[PolicyCondition]] = {pid: [] for pid in policy_ids}

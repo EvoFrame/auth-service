@@ -615,9 +615,7 @@ async def test_scoped_policy_fields_in_response(client: AsyncClient, abac_admin:
     assert r.json()["scope_action"] == "read"
 
 
-async def test_scoped_policy_fires_on_matching_scope(
-    client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID
-):
+async def test_scoped_policy_fires_on_matching_scope(client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID):
     """Scoped policy fires when resource_type and action match."""
     headers = _auth(abac_admin)
 
@@ -678,7 +676,7 @@ async def test_scoped_policy_skipped_on_wrong_resource_type(
             "effect": "allow",
             "priority": 80,
             "is_active": True,
-            "scope_resource_type": "file",   # scoped to file
+            "scope_resource_type": "file",  # scoped to file
             "scope_action": "read",
         },
         headers=headers,
@@ -702,9 +700,7 @@ async def test_scoped_policy_skipped_on_wrong_resource_type(
     await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)
 
 
-async def test_scoped_policy_skipped_on_wrong_action(
-    client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID
-):
+async def test_scoped_policy_skipped_on_wrong_action(client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID):
     """Scoped policy is NOT evaluated when action differs."""
     headers = _auth(abac_admin)
 
@@ -722,7 +718,7 @@ async def test_scoped_policy_skipped_on_wrong_action(
             "priority": 80,
             "is_active": True,
             "scope_resource_type": "file",
-            "scope_action": "read",          # scoped to read
+            "scope_action": "read",  # scoped to read
         },
         headers=headers,
     )
