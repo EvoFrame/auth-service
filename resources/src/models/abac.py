@@ -16,8 +16,17 @@ class UserAttribute(SQLModel, table=True):
     user_id: uuid.UUID = Field(primary_key=True)
     key: str = Field(primary_key=True)
     value: str = Field(nullable=False)
+    # Audit columns — always last
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )
+    updated_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            default=lambda: datetime.now(UTC),
+            onupdate=lambda: datetime.now(UTC),
+        )
     )
 
 
@@ -32,8 +41,17 @@ class Policy(SQLModel, table=True):
     is_active: bool = Field(default=True, nullable=False)
     scope_resource_type: str | None = Field(default=None, nullable=True)  # NULL = all resource types
     scope_action: str | None = Field(default=None, nullable=True)         # NULL = all actions
+    # Audit columns — always last
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )
+    updated_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            default=lambda: datetime.now(UTC),
+            onupdate=lambda: datetime.now(UTC),
+        )
     )
 
 
@@ -48,3 +66,15 @@ class PolicyCondition(SQLModel, table=True):
     value: str = Field(nullable=False)  # raw string or JSON-encoded list for in/not_in
     value_ref_source: str | None = Field(default=None, nullable=True)  # "subject"|"resource"|"environment"
     value_ref_key: str | None = Field(default=None, nullable=True)     # attribute key to resolve
+    # Audit columns — always last
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )
+    updated_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            default=lambda: datetime.now(UTC),
+            onupdate=lambda: datetime.now(UTC),
+        )
+    )

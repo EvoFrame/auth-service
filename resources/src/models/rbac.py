@@ -11,8 +11,17 @@ class Role(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(unique=True, index=True, nullable=False)
     description: str | None = Field(default=None, nullable=True)
+    # Audit columns — always last
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )
+    updated_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            default=lambda: datetime.now(UTC),
+            onupdate=lambda: datetime.now(UTC),
+        )
     )
 
 
@@ -22,8 +31,17 @@ class Permission(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(unique=True, index=True, nullable=False)
     description: str | None = Field(default=None, nullable=True)
+    # Audit columns — always last
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    )
+    updated_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            default=lambda: datetime.now(UTC),
+            onupdate=lambda: datetime.now(UTC),
+        )
     )
 
 

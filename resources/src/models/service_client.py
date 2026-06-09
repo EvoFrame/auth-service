@@ -12,7 +12,7 @@ class ServiceClient(SQLModel, table=True):
     service_id: str = Field(unique=True, index=True, nullable=False)
     secret_hash: str = Field(nullable=False)
     is_active: bool = Field(default=True, nullable=False)
-    deleted_at: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True, default=None))
+    # Audit columns — always last
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     )
@@ -24,3 +24,4 @@ class ServiceClient(SQLModel, table=True):
             onupdate=lambda: datetime.now(UTC),
         )
     )
+    deleted_at: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True, default=None))
