@@ -245,13 +245,15 @@ user_attributes
 └── created_at   TIMESTAMPTZ
 
 policies
-├── id           UUID   PK
-├── name         TEXT   UNIQUE
-├── description  TEXT?
-├── effect       TEXT   "allow" | "deny"
-├── priority     INT    higher = evaluated first
-├── is_active    BOOL
-└── created_at   TIMESTAMPTZ
+├── id                   UUID   PK
+├── name                 TEXT   UNIQUE
+├── description          TEXT?
+├── effect               TEXT   "allow" | "deny"
+├── priority             INT    higher = evaluated first
+├── is_active            BOOL
+├── scope_resource_type  TEXT?  NULL = any resource type
+├── scope_action         TEXT?  NULL = any action
+└── created_at           TIMESTAMPTZ
 
 policy_conditions
 ├── id                UUID   PK
@@ -336,6 +338,48 @@ Then the calling service (e.g. `file-service`) includes the file's owner in the 
 ```
 
 If `subject["user_id"] == resource["owner_id"]` → `allow`. Otherwise → `deny`.
+
+---
+
+## Policy scoping
+
+By default a policy is evaluated against **every** `POST /abac/evaluate` request, regardless
+of what resource type or action is being requested. As the number of policies grows this
+becomes expensive.
+
+Two optional scope columns on `Policy` allow the database to pre-filter policies before the
+engine runs:
+
+| Column | Type | Default | Meaning |
+|---|---|---|---|
+| `scope_resource_type` | `TEXT` | `NULL` | Only evaluate this policy when `resource_type` matches. `NULL` = all resource types. |
+| `scope_action` | `TEXT` | `NULL` | Only evaluate this policy when `action` matches. `NULL` = all actions. |
+
+**`NULL` always acts as a wildcard.** Existing policies with both columns `NULL` continue to
+match every request (no behaviour change).
+
+### Example
+
+```json
+POST /api/v1/abac/policies
+{
+  "name": "allow-engineering-read-files",
+  "effect": "allow",
+  "priority": 10,
+  "scope_resource_type": "file",
+  "scope_action": "read"
+}
+```
+
+This policy is only loaded into the evaluation engine when `resource_type == "file"` AND
+`action == "read"`. A `resource_type: "invoice"` request will never touch it, even if the
+policy is active.
+
+### Performance implication
+
+Pre-filtering happens at the SQL query level (one `WHERE` clause per scope column), so only
+the relevant subset of policies is loaded. Each scope column has a partial index
+(`WHERE scope_X IS NOT NULL`) — rows without a scope are not indexed and incur no overhead.
 
 ---
 

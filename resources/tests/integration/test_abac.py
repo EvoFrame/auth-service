@@ -584,3 +584,225 @@ async def test_evaluate_cross_attr_deny_when_not_owner(
     assert r.json()["decision"] == "deny"
 
     await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)
+
+
+# ---------------------------------------------------------------------------
+# Policy scope pre-filtering
+# ---------------------------------------------------------------------------
+
+
+async def test_scoped_policy_fields_in_response(client: AsyncClient, abac_admin: uuid.UUID):
+    """scope_resource_type and scope_action are persisted and returned."""
+    headers = _auth(abac_admin)
+    r = await client.post(
+        f"{BASE}/policies",
+        json={
+            "name": f"scoped-{uuid.uuid4().hex[:6]}",
+            "effect": "allow",
+            "is_active": False,
+            "scope_resource_type": "file",
+            "scope_action": "read",
+        },
+        headers=headers,
+    )
+    assert r.status_code == 201
+    data = r.json()
+    assert data["scope_resource_type"] == "file"
+    assert data["scope_action"] == "read"
+
+    r = await client.get(f"{BASE}/policies/{data['id']}", headers=headers)
+    assert r.json()["scope_resource_type"] == "file"
+    assert r.json()["scope_action"] == "read"
+
+
+async def test_scoped_policy_fires_on_matching_scope(
+    client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID
+):
+    """Scoped policy fires when resource_type and action match."""
+    headers = _auth(abac_admin)
+
+    await client.put(
+        f"{BASE}/users/{fresh_user}/attributes/status",
+        json={"value": "active"},
+        headers=headers,
+    )
+
+    policy_name = f"scope-match-{uuid.uuid4().hex[:6]}"
+    r = await client.post(
+        f"{BASE}/policies",
+        json={
+            "name": policy_name,
+            "effect": "allow",
+            "priority": 80,
+            "is_active": True,
+            "scope_resource_type": "file",
+            "scope_action": "read",
+        },
+        headers=headers,
+    )
+    policy_id = r.json()["id"]
+    await client.post(
+        f"{BASE}/policies/{policy_id}/conditions",
+        json={"attribute_source": "subject", "attribute_key": "status", "operator": "eq", "value": "active"},
+        headers=headers,
+    )
+
+    r = await client.post(
+        f"{BASE}/evaluate",
+        json={"user_id": str(fresh_user), "action": "read", "resource_type": "file"},
+        headers=headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["decision"] == "allow"
+    assert r.json()["matched_policy_name"] == policy_name
+
+    await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)
+
+
+async def test_scoped_policy_skipped_on_wrong_resource_type(
+    client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID
+):
+    """Scoped policy is NOT evaluated when resource_type differs."""
+    headers = _auth(abac_admin)
+
+    await client.put(
+        f"{BASE}/users/{fresh_user}/attributes/status",
+        json={"value": "active"},
+        headers=headers,
+    )
+
+    r = await client.post(
+        f"{BASE}/policies",
+        json={
+            "name": f"scope-skip-rt-{uuid.uuid4().hex[:6]}",
+            "effect": "allow",
+            "priority": 80,
+            "is_active": True,
+            "scope_resource_type": "file",   # scoped to file
+            "scope_action": "read",
+        },
+        headers=headers,
+    )
+    policy_id = r.json()["id"]
+    await client.post(
+        f"{BASE}/policies/{policy_id}/conditions",
+        json={"attribute_source": "subject", "attribute_key": "status", "operator": "eq", "value": "active"},
+        headers=headers,
+    )
+
+    # Request for "invoice" — policy is pre-filtered out
+    r = await client.post(
+        f"{BASE}/evaluate",
+        json={"user_id": str(fresh_user), "action": "read", "resource_type": "invoice"},
+        headers=headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["decision"] == "deny"
+
+    await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)
+
+
+async def test_scoped_policy_skipped_on_wrong_action(
+    client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID
+):
+    """Scoped policy is NOT evaluated when action differs."""
+    headers = _auth(abac_admin)
+
+    await client.put(
+        f"{BASE}/users/{fresh_user}/attributes/status",
+        json={"value": "active"},
+        headers=headers,
+    )
+
+    r = await client.post(
+        f"{BASE}/policies",
+        json={
+            "name": f"scope-skip-action-{uuid.uuid4().hex[:6]}",
+            "effect": "allow",
+            "priority": 80,
+            "is_active": True,
+            "scope_resource_type": "file",
+            "scope_action": "read",          # scoped to read
+        },
+        headers=headers,
+    )
+    policy_id = r.json()["id"]
+    await client.post(
+        f"{BASE}/policies/{policy_id}/conditions",
+        json={"attribute_source": "subject", "attribute_key": "status", "operator": "eq", "value": "active"},
+        headers=headers,
+    )
+
+    # Request with action "delete" — policy is pre-filtered out
+    r = await client.post(
+        f"{BASE}/evaluate",
+        json={"user_id": str(fresh_user), "action": "delete", "resource_type": "file"},
+        headers=headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["decision"] == "deny"
+
+    await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)
+
+
+async def test_unscoped_policy_still_fires_for_any_scope(
+    client: AsyncClient, abac_admin: uuid.UUID, fresh_user: uuid.UUID
+):
+    """Policy with NULL scope fields fires regardless of resource_type and action."""
+    headers = _auth(abac_admin)
+
+    await client.put(
+        f"{BASE}/users/{fresh_user}/attributes/wildcard_marker",
+        json={"value": "yes"},
+        headers=headers,
+    )
+
+    policy_name = f"wildcard-{uuid.uuid4().hex[:6]}"
+    r = await client.post(
+        f"{BASE}/policies",
+        json={"name": policy_name, "effect": "allow", "priority": 90, "is_active": True},
+        headers=headers,
+    )
+    policy_id = r.json()["id"]
+    await client.post(
+        f"{BASE}/policies/{policy_id}/conditions",
+        json={"attribute_source": "subject", "attribute_key": "wildcard_marker", "operator": "eq", "value": "yes"},
+        headers=headers,
+    )
+
+    for rt, action in [("file", "read"), ("invoice", "delete"), ("anything", "whatever")]:
+        r = await client.post(
+            f"{BASE}/evaluate",
+            json={"user_id": str(fresh_user), "action": action, "resource_type": rt},
+            headers=headers,
+        )
+        assert r.json()["decision"] == "allow", f"Expected allow for {rt}/{action}"
+
+    await client.patch(f"{BASE}/policies/{policy_id}", json={"is_active": False}, headers=headers)
+
+
+async def test_update_policy_clears_scope(client: AsyncClient, abac_admin: uuid.UUID):
+    """PATCH can clear scope fields back to NULL (wildcard) by explicitly sending null."""
+    headers = _auth(abac_admin)
+
+    r = await client.post(
+        f"{BASE}/policies",
+        json={
+            "name": f"clear-scope-{uuid.uuid4().hex[:6]}",
+            "effect": "allow",
+            "scope_resource_type": "file",
+            "scope_action": "read",
+        },
+        headers=headers,
+    )
+    policy_id = r.json()["id"]
+    assert r.json()["scope_resource_type"] == "file"
+
+    r = await client.patch(
+        f"{BASE}/policies/{policy_id}",
+        json={"scope_resource_type": None, "scope_action": None},
+        headers=headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["scope_resource_type"] is None
+    assert r.json()["scope_action"] is None

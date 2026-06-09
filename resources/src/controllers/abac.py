@@ -375,6 +375,8 @@ async def _build_policy_detail(policy: Policy, session: AsyncSession) -> PolicyD
         effect=policy.effect,
         priority=policy.priority,
         is_active=policy.is_active,
+        scope_resource_type=policy.scope_resource_type,
+        scope_action=policy.scope_action,
         created_at=policy.created_at,
         conditions=[PolicyConditionResponse.model_validate(c, from_attributes=True) for c in cond_rows],
     )
