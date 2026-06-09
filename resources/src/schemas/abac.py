@@ -57,6 +57,8 @@ class PolicyCreateRequest(BaseModel):
     effect: str  # "allow" | "deny"
     priority: int = 0
     is_active: bool = True
+    scope_resource_type: str | None = None  # NULL = all resource types
+    scope_action: str | None = None         # NULL = all actions
 
 
 class PolicyUpdateRequest(BaseModel):
@@ -65,6 +67,8 @@ class PolicyUpdateRequest(BaseModel):
     effect: str | None = None
     priority: int | None = None
     is_active: bool | None = None
+    scope_resource_type: str | None = None
+    scope_action: str | None = None
 
 
 class PolicyResponse(BaseModel):
@@ -74,6 +78,8 @@ class PolicyResponse(BaseModel):
     effect: str
     priority: int
     is_active: bool
+    scope_resource_type: str | None
+    scope_action: str | None
     created_at: datetime
 
 

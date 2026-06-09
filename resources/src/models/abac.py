@@ -30,6 +30,8 @@ class Policy(SQLModel, table=True):
     effect: str = Field(nullable=False)  # "allow" | "deny"
     priority: int = Field(default=0, nullable=False)
     is_active: bool = Field(default=True, nullable=False)
+    scope_resource_type: str | None = Field(default=None, nullable=True)  # NULL = all resource types
+    scope_action: str | None = Field(default=None, nullable=True)         # NULL = all actions
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     )

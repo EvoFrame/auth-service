@@ -3,7 +3,7 @@
 import uuid
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.libs.abac_engine import ConditionSpec, EvaluationContext, PolicySpec, evaluate
@@ -102,6 +102,8 @@ async def create_policy(data: PolicyCreateRequest, session: AsyncSession) -> Pol
         effect=data.effect,
         priority=data.priority,
         is_active=data.is_active,
+        scope_resource_type=data.scope_resource_type,
+        scope_action=data.scope_action,
     )
     session.add(policy)
     await session.commit()
@@ -136,6 +138,12 @@ async def update_policy(policy_id: uuid.UUID, data: PolicyUpdateRequest, session
         policy.priority = data.priority
     if data.is_active is not None:
         policy.is_active = data.is_active
+    # Scope fields use explicit sentinel: pass None to clear, omit field means "don't touch".
+    # Since PolicyUpdateRequest defaults both to None, we use a sentinel pattern via model_fields_set.
+    if "scope_resource_type" in data.model_fields_set:
+        policy.scope_resource_type = data.scope_resource_type
+    if "scope_action" in data.model_fields_set:
+        policy.scope_action = data.scope_action
 
     session.add(policy)
     await session.commit()
@@ -243,8 +251,16 @@ async def evaluate_access(
     environment["action"] = request.action
     environment["resource_type"] = request.resource_type
 
-    # 6. Load active policies and their conditions
-    policy_rows = (await session.execute(select(Policy).where(Policy.is_active.is_(True)))).scalars().all()
+    # 6. Load active policies pre-filtered by scope — NULL scope columns match any value (wildcard)
+    policy_rows = (
+        await session.execute(
+            select(Policy).where(
+                Policy.is_active.is_(True),
+                or_(Policy.scope_resource_type.is_(None), Policy.scope_resource_type == request.resource_type),
+                or_(Policy.scope_action.is_(None), Policy.scope_action == request.action),
+            )
+        )
+    ).scalars().all()
     policy_ids = [p.id for p in policy_rows]
 
     conditions_by_policy: dict[uuid.UUID, list[PolicyCondition]] = {pid: [] for pid in policy_ids}
