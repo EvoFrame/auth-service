@@ -26,3 +26,8 @@ tasks:
     desc: Show full migration history
     deps: [_guard]
     cmd: uv run alembic -c resources/alembic.ini history --verbose
+
+  seed:
+    desc: "🌱  Seed default roles and permissions (idempotent)"
+    deps: [_guard]
+    cmd: uv run python resources/scripts/seed_roles.py

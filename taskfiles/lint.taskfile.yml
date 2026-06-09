@@ -10,16 +10,16 @@ tasks:
   check:
     desc: Run ruff linter (report only)
     deps: [_guard]
-    cmd: uv run ruff check resources/src resources/tests
+    cmd: uv run ruff check resources/src resources/scripts resources/tests
 
   format:
     desc: Run ruff formatter (imports + style)
     deps: [_guard]
     cmds:
-      - uv run ruff check --select I --fix resources/src resources/tests
-      - uv run ruff format resources/src resources/tests
+      - uv run ruff check --select I --fix resources/src resources/scripts resources/tests
+      - uv run ruff format resources/src resources/scripts resources/tests
 
   fix:
     desc: Auto-fix lint issues in place
     deps: [_guard]
-    cmd: uv run ruff check --fix resources/src resources/tests
+    cmd: uv run ruff check --fix resources/src resources/scripts resources/tests
