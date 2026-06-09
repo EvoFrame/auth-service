@@ -83,30 +83,30 @@ users — two accounts cannot share the same backup email.
 
 All admin endpoints require a valid `X-Service-Token` and the appropriate RBAC permission.
 
-| Method | Path | Permission | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/users` | `users:read` | List users (paginated) |
-| `GET` | `/api/v1/users/{user_id}` | `users:read` | Get a single user |
-| `PATCH` | `/api/v1/users/{user_id}` | `users:write` | Update user fields |
-| `DELETE` | `/api/v1/users/{user_id}` | `users:write` | Soft-delete user |
+| Method   | Path                      | Permission    | Description            |
+| -------- | ------------------------- | ------------- | ---------------------- |
+| `GET`    | `/api/v1/users`           | `users:read`  | List users (paginated) |
+| `GET`    | `/api/v1/users/{user_id}` | `users:read`  | Get a single user      |
+| `PATCH`  | `/api/v1/users/{user_id}` | `users:write` | Update user fields     |
+| `DELETE` | `/api/v1/users/{user_id}` | `users:write` | Soft-delete user       |
 
 ### List query parameters
 
-| Parameter | Default | Description |
-|---|---|---|
-| `page` | `1` | Page number (1-based) |
-| `page_size` | `20` | Items per page (max 100) |
+| Parameter         | Default | Description                |
+| ----------------- | ------- | -------------------------- |
+| `page`            | `1`     | Page number (1-based)      |
+| `page_size`       | `20`    | Items per page (max 100)   |
 | `include_deleted` | `false` | Include soft-deleted users |
 
 ### Admin update fields
 
-| Field | Type | Description |
-|---|---|---|
-| `email` | `string?` | Change the user's primary email |
-| `backup_email` | `string?` | Set or change the backup email |
-| `backup_email_verified` | `bool?` | Override the backup email verified flag |
-| `is_active` | `bool?` | Enable or disable the account |
-| `is_verified` | `bool?` | Mark email as verified (e.g. after manual check) |
+| Field                   | Type      | Description                                      |
+| ----------------------- | --------- | ------------------------------------------------ |
+| `email`                 | `string?` | Change the user's primary email                  |
+| `backup_email`          | `string?` | Set or change the backup email                   |
+| `backup_email_verified` | `bool?`   | Override the backup email verified flag          |
+| `is_active`             | `bool?`   | Enable or disable the account                    |
+| `is_verified`           | `bool?`   | Mark email as verified (e.g. after manual check) |
 
 Admins can set `backup_email_verified` directly (e.g. after sending a verification flow
 through a separate channel), whereas self-service resets it to `false` whenever the
@@ -136,8 +136,8 @@ users
 
 ## Domain events
 
-| Stream | Published when |
-|---|---|
+| Stream              | Published when                            |
+| ------------------- | ----------------------------------------- |
 | `auth.user.deleted` | User account soft-deleted (self or admin) |
 
 ---

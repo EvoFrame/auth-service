@@ -32,10 +32,10 @@ client.
 
 ## Supported providers
 
-| Provider | `{provider}` value | Required env vars |
-|---|---|---|
-| Google | `google` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
-| GitHub | `github` | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
+| Provider | `{provider}` value | Required env vars                          |
+| -------- | ------------------ | ------------------------------------------ |
+| Google   | `google`           | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| GitHub   | `github`           | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
 
 If the required credentials are not configured, the endpoint returns `503 PROVIDER_NOT_CONFIGURED`.
 
@@ -83,8 +83,8 @@ This URI must be registered in the OAuth application settings of each provider.
 
 ## API reference
 
-| Method | Path | Auth required | Description |
-|---|---|---|---|
+| Method | Path                                         | Auth required            | Description                                     |
+| ------ | -------------------------------------------- | ------------------------ | ----------------------------------------------- |
 | `POST` | `/api/v1/users/oauth/{provider}?code=<code>` | None (no user token yet) | Exchange authorization code for an access token |
 
 **Response:**
@@ -109,6 +109,6 @@ This URI must be registered in the OAuth application settings of each provider.
 - Only **verified** primary emails are accepted from GitHub. Unverified addresses are
   rejected.
 - Disabled accounts (`is_active = false`) and soft-deleted accounts (`deleted_at IS NOT
-  NULL`) cannot log in via OAuth.
+NULL`) cannot log in via OAuth.
 - The `X-Service-Token` requirement (enforced by `ServiceAuthMiddleware`) still applies
   to the OAuth endpoint; only known internal services can trigger it.

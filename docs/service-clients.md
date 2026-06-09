@@ -103,13 +103,13 @@ returns its claims. Useful when a service wants to inspect a token presented to 
 
 ```json
 {
-  "sub":   "worker-service",
-  "iss":   "auth-service",
-  "type":  "service",
+  "sub": "worker-service",
+  "iss": "auth-service",
+  "type": "service",
   "scope": "internal",
-  "jti":   "<uuid>",
-  "iat":   1700000000,
-  "exp":   1700000300
+  "jti": "<uuid>",
+  "iat": 1700000000,
+  "exp": 1700000300
 }
 ```
 
@@ -119,20 +119,20 @@ returns its claims. Useful when a service wants to inspect a token presented to 
 
 ### Token flows (public — no prior service token needed)
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/v1/service-clients/token` | Authenticate and issue a service token |
-| `POST` | `/api/v1/service-clients/introspect` | Decode and validate a service token |
+| Method | Path                                 | Description                            |
+| ------ | ------------------------------------ | -------------------------------------- |
+| `POST` | `/api/v1/service-clients/token`      | Authenticate and issue a service token |
+| `POST` | `/api/v1/service-clients/introspect` | Decode and validate a service token    |
 
 ### Admin CRUD (requires `X-Service-Token` + permission)
 
-| Method | Path | Permission | Description |
-|---|---|---|---|
-| `POST` | `/api/v1/service-clients` | `service_clients:write` | Register a new service client |
-| `GET` | `/api/v1/service-clients` | `service_clients:read` | List service clients (paginated) |
-| `GET` | `/api/v1/service-clients/{service_id}` | `service_clients:read` | Get a single service client |
-| `PATCH` | `/api/v1/service-clients/{service_id}` | `service_clients:write` | Update (e.g. enable/disable) |
-| `DELETE` | `/api/v1/service-clients/{service_id}` | `service_clients:write` | Soft-delete a service client |
+| Method   | Path                                   | Permission              | Description                      |
+| -------- | -------------------------------------- | ----------------------- | -------------------------------- |
+| `POST`   | `/api/v1/service-clients`              | `service_clients:write` | Register a new service client    |
+| `GET`    | `/api/v1/service-clients`              | `service_clients:read`  | List service clients (paginated) |
+| `GET`    | `/api/v1/service-clients/{service_id}` | `service_clients:read`  | Get a single service client      |
+| `PATCH`  | `/api/v1/service-clients/{service_id}` | `service_clients:write` | Update (e.g. enable/disable)     |
+| `DELETE` | `/api/v1/service-clients/{service_id}` | `service_clients:write` | Soft-delete a service client     |
 
 **Create response** (secret shown once):
 
@@ -148,10 +148,10 @@ returns its claims. Useful when a service wants to inspect a token presented to 
 
 **List query parameters:**
 
-| Parameter | Default | Description |
-|---|---|---|
-| `page` | `1` | Page number (1-based) |
-| `page_size` | `20` | Items per page (max 100) |
+| Parameter         | Default | Description                  |
+| ----------------- | ------- | ---------------------------- |
+| `page`            | `1`     | Page number (1-based)        |
+| `page_size`       | `20`    | Items per page (max 100)     |
 | `include_deleted` | `false` | Include soft-deleted clients |
 
 ---
@@ -173,12 +173,12 @@ service_clients
 
 ## Domain events
 
-| Stream | Published when |
-|---|---|
-| `auth.service.token_issued` | A service token was successfully issued |
-| `auth.service.client_created` | A new service client was registered |
-| `auth.service.client_deleted` | A service client was soft-deleted |
-| `auth.access.denied` | A request was rejected by `ServiceAuthMiddleware` |
+| Stream                        | Published when                                    |
+| ----------------------------- | ------------------------------------------------- |
+| `auth.service.token_issued`   | A service token was successfully issued           |
+| `auth.service.client_created` | A new service client was registered               |
+| `auth.service.client_deleted` | A service client was soft-deleted                 |
+| `auth.access.denied`          | A request was rejected by `ServiceAuthMiddleware` |
 
 ---
 

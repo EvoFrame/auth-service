@@ -105,21 +105,21 @@ surface). All other endpoints in `auth-service` require a valid `X-Service-Token
 
 ### Registration & login
 
-| Method | Path | Auth required | Description |
-|---|---|---|---|
-| `POST` | `/api/v1/users/register` | None | Register a new user |
-| `POST` | `/api/v1/users/verify-email` | None | Verify email address with token |
-| `POST` | `/api/v1/users/login` | None | Authenticate and issue tokens |
-| `POST` | `/api/v1/users/refresh` | None | Rotate refresh token, issue new access token |
-| `POST` | `/api/v1/users/logout` | None | Revoke the refresh session |
-| `GET` | `/api/v1/users/introspect` | Bearer token | Decode and validate a user token |
-| `GET` | `/api/v1/users/permissions/{user_id}` | None | Return user's roles and permissions |
+| Method | Path                                  | Auth required | Description                                  |
+| ------ | ------------------------------------- | ------------- | -------------------------------------------- |
+| `POST` | `/api/v1/users/register`              | None          | Register a new user                          |
+| `POST` | `/api/v1/users/verify-email`          | None          | Verify email address with token              |
+| `POST` | `/api/v1/users/login`                 | None          | Authenticate and issue tokens                |
+| `POST` | `/api/v1/users/refresh`               | None          | Rotate refresh token, issue new access token |
+| `POST` | `/api/v1/users/logout`                | None          | Revoke the refresh session                   |
+| `GET`  | `/api/v1/users/introspect`            | Bearer token  | Decode and validate a user token             |
+| `GET`  | `/api/v1/users/permissions/{user_id}` | None          | Return user's roles and permissions          |
 
 ### Password reset
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/v1/users/password-reset/request` | Request a reset email |
+| Method | Path                                   | Description                   |
+| ------ | -------------------------------------- | ----------------------------- |
+| `POST` | `/api/v1/users/password-reset/request` | Request a reset email         |
 | `POST` | `/api/v1/users/password-reset/confirm` | Apply new password with token |
 
 **Login request body:**
@@ -178,11 +178,11 @@ refresh_sessions
 
 ## Domain events
 
-| Stream | Published when |
-|---|---|
-| `auth.user.registered` | New user registered (includes `verify_token`) |
+| Stream                               | Published when                                 |
+| ------------------------------------ | ---------------------------------------------- |
+| `auth.user.registered`               | New user registered (includes `verify_token`)  |
 | `auth.user.password_reset_requested` | Reset token generated (includes `reset_token`) |
-| `auth.user.password_reset` | Password successfully changed |
+| `auth.user.password_reset`           | Password successfully changed                  |
 
 > `verify_token` and `reset_token` are included in events so that downstream services
 > (e.g. a mail service) can build and deliver the link. They are never logged.

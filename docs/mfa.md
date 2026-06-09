@@ -91,11 +91,11 @@ session from silently turning it off.
 All endpoints require a valid `Authorization: Bearer <access_token>` and a valid
 `X-Service-Token`.
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/v1/users/me/mfa/enable` | Generate TOTP secret and provisioning URI |
-| `POST` | `/api/v1/users/me/mfa/verify` | Verify code and activate MFA |
-| `POST` | `/api/v1/users/me/mfa/disable` | Disable MFA (requires valid TOTP code) |
+| Method | Path                           | Description                               |
+| ------ | ------------------------------ | ----------------------------------------- |
+| `POST` | `/api/v1/users/me/mfa/enable`  | Generate TOTP secret and provisioning URI |
+| `POST` | `/api/v1/users/me/mfa/verify`  | Verify code and activate MFA              |
+| `POST` | `/api/v1/users/me/mfa/disable` | Disable MFA (requires valid TOTP code)    |
 
 **Enable response:**
 
@@ -116,8 +116,8 @@ All endpoints require a valid `Authorization: Bearer <access_token>` and a valid
 
 ## Domain events
 
-| Stream | Published when |
-|---|---|
+| Stream                  | Published when                                               |
+| ----------------------- | ------------------------------------------------------------ |
 | `auth.user.mfa_changed` | MFA enabled or disabled (`action: "enabled"` / `"disabled"`) |
 
 ---

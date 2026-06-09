@@ -64,17 +64,17 @@ assignments to that role. Deleting a permission removes all its role assignments
 
 ## Built-in permission names used by `auth-service`
 
-| Permission | Used by |
-|---|---|
-| `users:read` | List/get users (admin) |
-| `users:write` | Update/delete users (admin) |
-| `roles:read` | List/get roles and permissions |
-| `roles:write` | Create/update/delete roles and permissions, manage assignments |
-| `abac:read` | Read ABAC policies, conditions, user attributes |
-| `abac:write` | Create/update/delete ABAC policies, conditions, user attributes |
-| `abac:evaluate` | Call `POST /abac/evaluate` |
-| `service_clients:read` | List/get service clients |
-| `service_clients:write` | Create/update/delete service clients |
+| Permission              | Used by                                                         |
+| ----------------------- | --------------------------------------------------------------- |
+| `users:read`            | List/get users (admin)                                          |
+| `users:write`           | Update/delete users (admin)                                     |
+| `roles:read`            | List/get roles and permissions                                  |
+| `roles:write`           | Create/update/delete roles and permissions, manage assignments  |
+| `abac:read`             | Read ABAC policies, conditions, user attributes                 |
+| `abac:write`            | Create/update/delete ABAC policies, conditions, user attributes |
+| `abac:evaluate`         | Call `POST /abac/evaluate`                                      |
+| `service_clients:read`  | List/get service clients                                        |
+| `service_clients:write` | Create/update/delete service clients                            |
 
 ---
 
@@ -84,36 +84,36 @@ All endpoints require a valid `X-Service-Token` and one of the permissions below
 
 ### Roles
 
-| Method | Path | Permission | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/rbac/roles` | `roles:read` | List all roles (paginated) |
-| `POST` | `/api/v1/rbac/roles` | `roles:write` | Create a new role |
-| `GET` | `/api/v1/rbac/roles/{role_id}` | `roles:read` | Get a role with its permissions |
-| `PATCH` | `/api/v1/rbac/roles/{role_id}` | `roles:write` | Update role name / description |
-| `DELETE` | `/api/v1/rbac/roles/{role_id}` | `roles:write` | Delete a role |
+| Method   | Path                           | Permission    | Description                     |
+| -------- | ------------------------------ | ------------- | ------------------------------- |
+| `GET`    | `/api/v1/rbac/roles`           | `roles:read`  | List all roles (paginated)      |
+| `POST`   | `/api/v1/rbac/roles`           | `roles:write` | Create a new role               |
+| `GET`    | `/api/v1/rbac/roles/{role_id}` | `roles:read`  | Get a role with its permissions |
+| `PATCH`  | `/api/v1/rbac/roles/{role_id}` | `roles:write` | Update role name / description  |
+| `DELETE` | `/api/v1/rbac/roles/{role_id}` | `roles:write` | Delete a role                   |
 
 ### Permissions
 
-| Method | Path | Permission | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/rbac/permissions` | `roles:read` | List all permissions (paginated) |
-| `POST` | `/api/v1/rbac/permissions` | `roles:write` | Create a new permission |
-| `DELETE` | `/api/v1/rbac/permissions/{permission_id}` | `roles:write` | Delete a permission |
+| Method   | Path                                       | Permission    | Description                      |
+| -------- | ------------------------------------------ | ------------- | -------------------------------- |
+| `GET`    | `/api/v1/rbac/permissions`                 | `roles:read`  | List all permissions (paginated) |
+| `POST`   | `/api/v1/rbac/permissions`                 | `roles:write` | Create a new permission          |
+| `DELETE` | `/api/v1/rbac/permissions/{permission_id}` | `roles:write` | Delete a permission              |
 
 ### Role ↔ Permission assignments
 
-| Method | Path | Permission | Description |
-|---|---|---|---|
-| `POST` | `/api/v1/rbac/roles/{role_id}/permissions/{permission_id}` | `roles:write` | Assign permission to role |
+| Method   | Path                                                       | Permission    | Description                 |
+| -------- | ---------------------------------------------------------- | ------------- | --------------------------- |
+| `POST`   | `/api/v1/rbac/roles/{role_id}/permissions/{permission_id}` | `roles:write` | Assign permission to role   |
 | `DELETE` | `/api/v1/rbac/roles/{role_id}/permissions/{permission_id}` | `roles:write` | Remove permission from role |
 
 ### User ↔ Role assignments
 
-| Method | Path | Permission | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/rbac/users/{user_id}/roles` | `roles:read` | Get user's roles and permissions |
-| `POST` | `/api/v1/rbac/users/{user_id}/roles/{role_id}` | `roles:write` | Assign role to user |
-| `DELETE` | `/api/v1/rbac/users/{user_id}/roles/{role_id}` | `roles:write` | Remove role from user |
+| Method   | Path                                           | Permission    | Description                      |
+| -------- | ---------------------------------------------- | ------------- | -------------------------------- |
+| `GET`    | `/api/v1/rbac/users/{user_id}/roles`           | `roles:read`  | Get user's roles and permissions |
+| `POST`   | `/api/v1/rbac/users/{user_id}/roles/{role_id}` | `roles:write` | Assign role to user              |
+| `DELETE` | `/api/v1/rbac/users/{user_id}/roles/{role_id}` | `roles:write` | Remove role from user            |
 
 ---
 
