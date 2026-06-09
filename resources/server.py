@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 from prometheus_fastapi_instrumentator import Instrumentator
 from src.config.logging import configure_logging
 from src.config.settings import settings
@@ -65,6 +66,20 @@ def create_app() -> FastAPI:
     app.include_router(router, prefix="/api/v1")
 
     Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
+        schema.setdefault("components", {})["securitySchemes"] = {
+            "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+        }
+        schema["security"] = [{"BearerAuth": []}]
+        app.openapi_schema = schema
+        return schema
+
+    if settings.DEBUG:
+        app.openapi = custom_openapi  # type: ignore[method-assign]
 
     return app
 
