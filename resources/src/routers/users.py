@@ -74,7 +74,7 @@ async def logout(
     session: AsyncSession = Depends(get_session),
     redis=Depends(get_redis),
 ):
-    return await users_ctrl.logout(body.refresh_token, session, redis)
+    return await users_ctrl.logout(body.refresh_token, session, redis, body.access_token)
 
 
 @_auth_router.get("/introspect", response_model=IntrospectResponse)

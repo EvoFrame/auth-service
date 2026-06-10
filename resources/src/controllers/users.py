@@ -46,6 +46,8 @@ _ph = PasswordHasher(
 _REFRESH_KEY = "refresh:{jti}"
 _VERIFY_KEY = "email_verify:{token}"
 _RESET_KEY = "pwd_reset:{token}"
+# Written on logout so the api-gateway can reject revoked access tokens.
+_BLACKLIST_KEY = "jwt:blacklist:{jti}"
 
 _VERIFY_TTL = 86400  # 24 h
 _RESET_TTL = 3600  # 1 h
@@ -312,8 +314,47 @@ async def refresh_token(
     )
 
 
-async def logout(refresh_token_str: str, session: AsyncSession, redis) -> dict:
+async def _blacklist_access_token(token: str, redis) -> None:
+    """Write the access token's JTI to the Redis blacklist.
+
+    Verifies the token signature before blacklisting to prevent a client from
+    blacklisting arbitrary JTIs.  Silently ignores invalid or already-expired
+    tokens — they are harmless since they would fail signature verification anyway.
+
+    The Redis key expires at the token's original ``exp`` so the blacklist never
+    grows unboundedly.
+    """
+    try:
+        claims = jwt.decode(
+            token,
+            settings.RS256_PUBLIC_KEY,
+            algorithms=["RS256"],
+            options={"verify_aud": False, "verify_exp": False},
+        )
+    except jwt.InvalidTokenError:
+        return
+
+    jti = claims.get("jti")
+    if not jti:
+        return
+
+    now = int(datetime.now(UTC).timestamp())
+    ttl = max(1, claims.get("exp", now) - now)
+    await redis.setex(_BLACKLIST_KEY.format(jti=jti), ttl, "1")
+
+
+async def logout(
+    refresh_token_str: str,
+    session,
+    redis,
+    access_token: str | None = None,
+) -> dict:
     """Revoke the given refresh session to log out the user.
+
+    If ``access_token`` is provided and its signature is valid, its JTI is
+    written to the Redis blacklist so the api-gateway will reject it on the
+    next request.  The key expires automatically once the token would have
+    expired anyway.
 
     Silently succeeds even if the token is already invalid or not found,
     to prevent information leakage.
@@ -321,7 +362,8 @@ async def logout(refresh_token_str: str, session: AsyncSession, redis) -> dict:
     Args:
         refresh_token_str: The composite refresh token string.
         session: Active database session.
-        redis: Redis client for cache invalidation.
+        redis: Redis client shared with api-gateway.
+        access_token: Optional encoded access JWT to blacklist immediately.
 
     Returns:
         A dict with a logout confirmation message.
@@ -345,6 +387,9 @@ async def logout(refresh_token_str: str, session: AsyncSession, redis) -> dict:
         rs.revoked_at = datetime.now(UTC)
         await redis.delete(_REFRESH_KEY.format(jti=session_id))
         await session.commit()
+
+    if access_token:
+        await _blacklist_access_token(access_token, redis)
 
     return {"message": "Logged out successfully."}
 
