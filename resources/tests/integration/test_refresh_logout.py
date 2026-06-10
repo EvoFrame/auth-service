@@ -60,3 +60,26 @@ async def test_logout_with_invalid_token_returns_200(client: AsyncClient):
     """Logout is idempotent — unknown/malformed tokens still return 200."""
     resp = await client.post(f"{BASE}/logout", json={"refresh_token": "bad:token"})
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_logout_blacklists_access_token(client: AsyncClient, redis_client):
+    """After logout with access_token, the JTI must exist in the Redis blacklist."""
+    import jwt as pyjwt
+
+    tokens = await _register_and_login(client, redis_client, "blacklist1@example.com", "BlacklistPw1!")
+    access_token = tokens["access_token"]
+
+    claims = pyjwt.decode(access_token, options={"verify_signature": False})
+    jti = claims.get("jti")
+    assert jti, "Expected access token to contain a jti claim"
+
+    logout_resp = await client.post(
+        f"{BASE}/logout",
+        json={"refresh_token": tokens["refresh_token"], "access_token": access_token},
+    )
+    assert logout_resp.status_code == 200
+
+    key = f"jwt:blacklist:{jti}"
+    val = await redis_client.get(key)
+    assert val is not None, f"Expected Redis key '{key}' to be set after logout"
