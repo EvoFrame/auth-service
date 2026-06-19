@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Generate a new migration (name=<name>)"
+set -euo pipefail
+migration_name="${1:-${name:-}}"
+if [[ -z "${migration_name}" ]]; then
+  echo "Provide migration name via: mise run db:new -- <name> or name=<name>" >&2
+  exit 1
+fi
+uv run alembic -c resources/alembic.ini revision --autogenerate -m "${migration_name}"

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+#MISE description="Build and start infra stack [--services] [--ui] [--monitoring]"
+#MISE alias="su"
+#MISE alias="up"
+#USAGE flag "--services" help="Also start application services profile"
+#USAGE flag "--ui" help="Also start UI companions (pgAdmin, RedisInsight)"
+#USAGE flag "--monitoring" help="Also start monitoring stack (Prometheus, Grafana, Loki)"
+
+PROFILES=(--profile infra)
+[ "${usage_services:-false}" = "true" ] && PROFILES+=(--profile services)
+[ "${usage_ui:-false}" = "true" ] && PROFILES+=(--profile infra-ui)
+[ "${usage_monitoring:-false}" = "true" ] && PROFILES+=(--profile monitoring)
+
+docker compose "${PROFILES[@]}" up -d --build --remove-orphans

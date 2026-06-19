@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Sync deps from uv.lock (installs missing, removes extra)"
+#MISE alias="sync"
+uv sync

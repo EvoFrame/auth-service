@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Auto-fix lint issues in place"
+uv run ruff check --fix resources/src resources/scripts resources/tests

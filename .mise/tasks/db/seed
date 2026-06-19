@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Seed default roles and permissions (idempotent)"
+uv run python resources/scripts/seed_roles.py

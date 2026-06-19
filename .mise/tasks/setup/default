@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Bootstrap project (init env files + generate RSA keys)"
+#MISE alias="setup"
+set -e
+mise run setup:init-env
+mise run setup:rotate-keys

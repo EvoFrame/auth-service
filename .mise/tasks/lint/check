@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Run ruff linter (report only)"
+#MISE alias="lint"
+uv run ruff check resources/src resources/scripts resources/tests

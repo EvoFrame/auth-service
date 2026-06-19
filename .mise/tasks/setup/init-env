@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#MISE description="Copy all *.env.*example files to *.env*"
+#MISE alias="ie"
+set -e
+env_files=$(find . -type f -name "*.env.*example")
+for f in $env_files; do
+  target=$(echo "$f" | sed -e "s/.example$//")
+  cp -n "$f" "$target" && chmod 766 "$target"
+done
+echo "Environment files initialized, you may want to edit them now"
+echo "Here are the files that were initialized:"
+for f in $env_files; do
+  target=$(echo "$f" | sed -e "s/.example$//")
+  ls -la "$target" 2>/dev/null || true
+done

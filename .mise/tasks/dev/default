@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#MISE description="Start dev server (watch mode) + full dev stack (db + redis)"
+#MISE alias="dev"
+set -e
+
+wait_for_db() {
+  local timeout_seconds=60
+  local elapsed=0
+
+  while ! docker compose exec -T db pg_isready -U "${DB_USER}" -d "${DB_NAME}" >/dev/null 2>&1; do
+    if [ "${elapsed}" -ge "${timeout_seconds}" ]; then
+      echo "Database did not become ready within ${timeout_seconds}s." >&2
+      exit 1
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+}
+
+mise run stack:up
+wait_for_db
+mise run db:migrate
+mise run dev:start

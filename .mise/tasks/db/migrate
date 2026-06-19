@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Apply pending Alembic migrations"
+#MISE alias="migrate"
+uv run alembic -c resources/alembic.ini upgrade head

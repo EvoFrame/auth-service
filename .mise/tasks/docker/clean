@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Stop containers and delete all volumes (destructive)"
+docker compose --profile infra --profile services --profile infra-ui --profile monitoring down -v --remove-orphans

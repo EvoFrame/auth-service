@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Add a runtime dependency (name=<package>)"
+set -euo pipefail
+package_name="${1:-${name:-}}"
+if [[ -z "${package_name}" ]]; then
+  echo "Provide package name via: mise run deps:add -- <package> or name=<package>" >&2
+  exit 1
+fi
+uv add "${package_name}"

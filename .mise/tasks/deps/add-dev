@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Add a dev dependency (name=<package>)"
+set -euo pipefail
+package_name="${1:-${name:-}}"
+if [[ -z "${package_name}" ]]; then
+  echo "Provide package name via: mise run deps:add-dev -- <package> or name=<package>" >&2
+  exit 1
+fi
+uv add --group dev "${package_name}"

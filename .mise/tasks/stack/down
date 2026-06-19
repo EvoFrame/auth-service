@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Stop and remove full stack containers (services + infra)"
+#MISE alias="sd"
+#MISE alias="down"
+docker compose --profile infra --profile services --profile infra-ui --profile monitoring down --remove-orphans

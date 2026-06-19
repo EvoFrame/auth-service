@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run ruff formatter (imports + style)"
+#MISE alias="format"
+set -e
+uv run ruff check --select I --fix resources/src resources/scripts resources/tests
+uv run ruff format resources/src resources/scripts resources/tests

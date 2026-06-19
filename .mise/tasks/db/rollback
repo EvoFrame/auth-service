@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Rollback one migration step"
+uv run alembic -c resources/alembic.ini downgrade -1

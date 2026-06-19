@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Rebuild the app image"
+docker compose --profile services build

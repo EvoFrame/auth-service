@@ -1,0 +1,13 @@
+[hooks]
+enter = """
+mise install --quiet
+uv sync
+"""
+
+[tools]
+python = "3.13"
+uv = "latest"
+
+[env]
+_.file = [".env", ".env.local"]
+APP_ENV = "development"

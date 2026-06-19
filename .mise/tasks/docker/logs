@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Follow container logs"
+#MISE alias="logs"
+#USAGE arg "[service]" help="Container name to follow (default: all)"
+
+docker compose logs -f "${usage_service:-}"

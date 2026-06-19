@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Show full migration history"
+uv run alembic -c resources/alembic.ini history --verbose
