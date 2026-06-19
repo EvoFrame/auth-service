@@ -6,8 +6,7 @@ services:
   db:
     image: postgres:16-alpine
     profiles:
-      - services
-      - dev-stack
+      - infra
     container_name: ${COMPOSE_PROJECT_NAME}-db
     ports:
       - "127.0.0.1:${DB_PORT:-5432}:5432"
@@ -31,7 +30,7 @@ services:
   pgadmin:
     image: dpage/pgadmin4:latest
     profiles:
-      - ui
+      - infra-ui
     container_name: ${COMPOSE_PROJECT_NAME}-pgadmin
     ports:
       - "127.0.0.1:${PGADMIN_PORT:-80}:80"

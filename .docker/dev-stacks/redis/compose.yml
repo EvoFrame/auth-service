@@ -6,8 +6,7 @@ services:
   redis:
     image: redis:7-alpine
     profiles:
-      - services
-      - dev-stack
+      - infra
     container_name: ${COMPOSE_PROJECT_NAME}-redis
     ports:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
@@ -28,7 +27,7 @@ services:
   redisinsight:
     image: redis/redisinsight:latest
     profiles:
-      - ui
+      - infra-ui
     container_name: ${COMPOSE_PROJECT_NAME}-redisinsight
     ports:
       - "127.0.0.1:${REDIS_UI_PORT:-5540}:5540"

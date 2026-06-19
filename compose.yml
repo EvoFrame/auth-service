@@ -1,6 +1,6 @@
 # Root compose — includes all service fragments.
-# Run with: docker compose --profile services up -d
-# Opt-in profiles: --profile ui   --profile monitoring
+# Run with: docker compose --profile infra --profile services up -d
+# Opt-in profiles: --profile infra-ui   --profile monitoring
 
 services:
   auth-service:
