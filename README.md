@@ -84,34 +84,26 @@ service_clients
 
 ## Local development
 
-### Generating RSA keys
-
-The service signs and verifies JWTs using an RS256 key pair. You need to generate
-these once and provide them as environment variables.
+### First-time setup
 
 ```bash
-# Generate a 2048-bit RSA private key
-openssl genrsa -out private.pem 2048
-
-# Extract the public key
-openssl rsa -in private.pem -pubout -out public.pem
+mise run setup      # copies *.env.*example files + generates RSA key pair
+mise run dev        # starts db + redis, runs migrations, starts dev server
 ```
 
-Add the PEM contents to your `.env` file (multiline values must be quoted):
+### RSA keys
 
-```env
-RS256_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
-<paste contents of private.pem here>
------END RSA PRIVATE KEY-----"
+`setup:rotate-keys` generates a 2048-bit RSA key pair and injects the PEM values
+directly into `.env` as `RS256_PRIVATE_KEY` and `RS256_PUBLIC_KEY`. Run it again
+any time you need to rotate keys:
 
-RS256_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----
-<paste contents of public.pem here>
------END PUBLIC KEY-----"
+```bash
+mise run setup:rotate-keys
 ```
 
-> **Security:** `private.pem` must never be committed or shared.
-> Only `auth-service` holds the private key — all other services use the public key only.
-> Add `*.pem` to `.gitignore`.
+> **Security:** only `auth-service` holds the private key — all other services
+> validate tokens using the public key only. Key files are stored under
+> `.docker/keys/` which is git-ignored.
 
 The test suite generates its own ephemeral key pair automatically via `conftest.py`;
 these variables are only required when running the service manually.

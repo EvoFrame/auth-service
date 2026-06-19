@@ -29,9 +29,9 @@ platform. It is a Python/FastAPI application that handles:
 | Settings | pydantic-settings (`.env` + `.env.local`) |
 | Logging | structlog (structured JSON) |
 | Metrics | prometheus-fastapi-instrumentator (`/metrics`) |
-| Task runner | Task (Taskfile) |
+| Task runner | mise (tasks) |
 | Package manager | uv |
-| Dev environment | Devbox (Nix-based) |
+| Dev environment | mise |
 | Linter/formatter | Ruff |
 | Tests | pytest-asyncio + testcontainers (Postgres + Redis) |
 
@@ -185,23 +185,47 @@ await publisher.publish("auth.some.event", {"key": "value"})
 
 ```bash
 # One-time setup
-task init-env       # copy *.example env files
-devbox shell        # enter dev environment
+mise run setup                  # init env files + generate RSA keys
+mise run setup:init-env         # copy *.example env files only
+mise run setup:rotate-keys      # (re)generate RSA key pair → injected into .env
 
 # Daily dev
-task dev            # start docker stack (db + redis) + dev server with watch
+mise run dev                    # start infra (db + redis) + migrate + dev server
+
+# Stack management
+mise run stack:up               # start infra only (db + redis)
+mise run stack:up --services    # start infra + app container
+mise run stack:up --ui          # + pgAdmin + RedisInsight
+mise run stack:up --monitoring  # + Prometheus + Grafana + Loki
+mise run stack:down             # stop and remove all containers
 
 # Testing
-task test           # full suite with coverage
-task test:unit      # unit tests only
-task test:integration  # integration tests only
+mise run test:run               # full suite with coverage
+mise run test:unit              # unit tests only
+mise run test:integration       # integration tests only
 
 # Database
-task migrate        # apply pending Alembic migrations
+mise run db:migrate             # apply pending Alembic migrations
+mise run db:new                 # generate a new migration (pass name as arg)
+mise run db:rollback            # rollback one step
+mise run db:seed                # seed default roles and permissions
 
 # Linting
-task lint           # ruff check (report only)
-task format         # ruff check --fix + ruff format
+mise run lint:check             # ruff check (report only)
+mise run lint:fix               # auto-fix lint issues
+mise run lint:format            # fix imports + reformat
+
+# Dependencies
+mise run deps:sync              # sync from uv.lock
+mise run deps:add               # add a runtime dep
+mise run deps:add-dev           # add a dev dep
+mise run deps:update            # upgrade all deps
+
+# Docker helpers
+mise run docker:logs [service]  # follow logs (all containers or one)
+mise run docker:ps              # list container status
+mise run docker:build           # rebuild app image
+mise run docker:clean           # ⚠ remove all containers + volumes
 ```
 
 ## Environment variables (required)
