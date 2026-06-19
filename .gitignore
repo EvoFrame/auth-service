@@ -16,3 +16,4 @@
 .coverage
 htmlcov/
 coverage.xml
+.docker/keys/
