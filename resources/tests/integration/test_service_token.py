@@ -6,6 +6,7 @@ import pytest
 from argon2 import PasswordHasher
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+
 from src.models.service_client import ServiceClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -81,6 +82,7 @@ async def test_service_introspect_user_token_rejected(client: AsyncClient):
     from datetime import UTC, datetime, timedelta
 
     import jwt
+
     from src.config.settings import settings
 
     now = datetime.now(UTC)

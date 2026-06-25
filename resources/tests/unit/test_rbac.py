@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+
 from src.controllers.users import get_permissions
 from src.models.rbac import Permission, Role, RolePermission, UserRole
 

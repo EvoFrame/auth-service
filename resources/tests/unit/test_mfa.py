@@ -3,6 +3,7 @@
 import pyotp
 import pytest
 from cryptography.fernet import Fernet
+
 from src.config.settings import settings
 from src.controllers.mfa import _check_totp, mfa_disable, mfa_enable, mfa_verify_and_activate
 from src.libs.errors import AppError

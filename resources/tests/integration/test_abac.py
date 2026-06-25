@@ -10,6 +10,7 @@ from argon2 import PasswordHasher
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.config.settings import settings
 from src.models.rbac import Permission, Role, RolePermission, UserRole
 from src.models.user import User

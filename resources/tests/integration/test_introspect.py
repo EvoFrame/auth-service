@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import jwt
 import pytest
 from httpx import AsyncClient
+
 from src.config.settings import settings
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
