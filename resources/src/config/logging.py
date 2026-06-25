@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import re
 from typing import Literal
 
 import structlog
@@ -11,6 +12,10 @@ _shared_processors = [
     structlog.processors.add_log_level,
     structlog.processors.TimeStamper(fmt="iso"),
 ]
+
+_MUTED_ACCESS_PATH_PREFIXES = ("/health", "/metrics")
+_ACCESS_LOGGER_NAMES = {"uvicorn.access", "gunicorn.access"}
+_ACCESS_LOG_PATH_PATTERN = re.compile(r'"(?:GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+(?P<path>\S+)\s+HTTP/[0-9.]+"')
 
 type LoggerType = Literal["normal", "noisy"]
 
@@ -46,6 +51,29 @@ def _level_for(logger_type: LoggerType) -> str:
     return settings.NOISE_LOG_LEVEL if logger_type == "noisy" else settings.LOG_LEVEL
 
 
+def _extract_access_path(record: logging.LogRecord) -> str | None:
+    match = _ACCESS_LOG_PATH_PATTERN.search(record.getMessage())
+    if match is not None:
+        return match.group("path")
+
+    if isinstance(record.args, tuple) and len(record.args) >= 3 and isinstance(record.args[2], str):
+        return record.args[2]
+
+    return None
+
+
+class _AccessPathFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.name not in _ACCESS_LOGGER_NAMES:
+            return True
+
+        path = _extract_access_path(record)
+        if path is None:
+            return True
+
+        return not path.startswith(_MUTED_ACCESS_PATH_PREFIXES)
+
+
 def configure_logging() -> None:
     """Wire structlog + stdlib logging into a unified JSON pipeline."""
     structlog.configure(
@@ -71,7 +99,7 @@ def configure_logging() -> None:
     managed = {
         entry["name"]: {
             "level": _level_for(entry["type"]),
-            "handlers": ["default"],
+            "handlers": ["access" if entry["name"].endswith(".access") else "default"],
             "propagate": False,
         }
         for entry in _MANAGED_LOGGERS
@@ -83,7 +111,13 @@ def configure_logging() -> None:
             "disable_existing_loggers": False,
             "handlers": {
                 "default": {"class": "logging.StreamHandler", "formatter": "structlog"},
+                "access": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "structlog",
+                    "filters": ["mute_access_paths"],
+                },
             },
+            "filters": {"mute_access_paths": {"()": _AccessPathFilter}},
             "formatters": {
                 "structlog": {"()": lambda: formatter},
             },
