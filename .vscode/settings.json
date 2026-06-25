@@ -3,5 +3,7 @@
     "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnSave": true
   },
-  "ruff.configuration": "pyproject.toml"
+  "ruff.configuration": "pyproject.toml",
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": false
 }
